@@ -1,0 +1,23 @@
+# Installed dependencies for validate_pattern_wp.cjs (~400 packages) — never committed.
+# Restore with:  cd .claude/skills/codbrand-content-builder/scripts && npm ci
+node_modules/
+
+# package-lock.json is deliberately COMMITTED. The negation is required because the
+# ROOT .gitignore ignores `package-lock.json` repo-wide under "# Future package
+# managers" — a precaution for a plugin that has no build step. That blanket rule
+# stays; this carves out the one lockfile that is load-bearing. (A negation works
+# here only because no parent DIRECTORY is excluded — git cannot re-include a file
+# inside an excluded directory.)
+!package-lock.json
+#
+# It was ignored until 06-09-2026, which broke the documented install: README.md
+# says `npm ci`, and npm ci REFUSES to run without a lockfile. A fresh clone
+# therefore could not follow its own instructions.
+#
+# The lockfile is not redundant with the pins in package.json. Those pin only the
+# four DIRECT packages (@wordpress/block-editor, block-library, blocks, jsdom) to
+# exact versions; the lockfile is the only thing pinning the ~400-package
+# TRANSITIVE tree underneath them. Since the whole point of validate_pattern_wp.cjs
+# is to reproduce WordPress's own save() byte-for-byte, a shifting transitive tree
+# can change the answer the validator gives — which is the one thing this tool
+# exists to be trusted about.
