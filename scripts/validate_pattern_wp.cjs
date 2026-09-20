@@ -29,8 +29,9 @@
  * directory of <category>/<name>/content.html. With no argument it validates the
  * teaching corpus that ships inside this skill.
  *
- * SETUP (one time):
- *   cd .claude/skills/codbrand-content-builder/scripts && npm install
+ * SETUP (OPTIONAL -- this is route 2, the fallback; route 1 is the store's own check page):
+ *   copy this file + package.json + package-lock.json OUTSIDE the repo, then `npm ci` there.
+ *   NEVER `npm ci` in the skill folder on a dev machine -- it is a junction into the plugin repo.
  *
  * USAGE (from anywhere):
  *   node .claude/skills/codbrand-content-builder/scripts/validate_pattern_wp.cjs [file|dir] [--json] [--verbose]
@@ -72,10 +73,13 @@ if (!fs.existsSync(PATTERNS_ROOT)) {
 }
 if (!fs.existsSync(path.join(__dirname, "node_modules", "@wordpress", "blocks"))) {
   bail(
-    "Dependencies are not installed.\n\n" +
-    "Run once:\n" +
-    "  cd .claude/skills/codbrand-content-builder/scripts\n" +
-    "  npm install\n\n" +
+    "Dependencies are not installed. This validator is OPTIONAL -- it is route 2,\n" +
+    "the fallback. Route 1 is the store's own wp-admin check page, which needs\n" +
+    "nothing installed and is preferred.\n\n" +
+    "If you do want it, copy this file + package.json + package-lock.json into a\n" +
+    "directory OUTSIDE the repo and run `npm ci` there. Do NOT install in the skill\n" +
+    "folder: on a dev machine it is a junction into the plugin repo, so this puts\n" +
+    "1.6 GB / ~138,000 files inside the plugin.\n\n" +
     "(~400 packages, ~1.3 GB on disk (measured 15-09-2026). See references/headless-validation.md.)"
   );
 }

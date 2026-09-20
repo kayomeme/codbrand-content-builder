@@ -9,9 +9,12 @@ There is a second, stronger option, **proven working in this project** (Aug 2026
 **Since 15-09-2026 it is the strict check's LOCAL FALLBACK** (route 2 of the strict check, `SKILL.md` step 5 (c)). A COD Leads storefront runs the same check on its own wp-admin page — the site's real WordPress, in the merchant's logged-in browser, with nothing installed — documented at `cl-api/v1/docs/block_markup_validation`. This validator is for when no such browser is available and the toolbox is installed, and it remains the tool that checks this skill's own snippets and corpus. Side by side on WordPress 7.1 the page and this validator agreed on every block; they differ only on HTML outside any block, which the page (like the editor) reads as a Classic block and this harness reports as `core/missing`, because nothing registers a Classic block in Node.
 
 ```bash
-cd .claude/skills/codbrand-content-builder/scripts && npm install   # one time, ~400 packages
+# OPTIONAL (route 2 only). Copy the 3 files somewhere OUTSIDE the repo first -- see the warning below.
+cd <a directory of your own> && npm ci                              # one time, ~400 packages, 1.6 GB
 node .claude/skills/codbrand-content-builder/scripts/validate_pattern_wp.cjs [--verbose] [--json]
 ```
+
+⚠️ **Never install it INSIDE the skill folder on a machine where that folder is a link into a repo.** `dev/link-skills.sh` installs `~/.claude/skills/<skill>` as a junction into the plugin repo, so `npm ci` there puts **1.6 GB / ~138,000 files inside the plugin** (measured 20-09-2026; it also made the skill publish copy and then delete all of it, adding ~6 minutes to every deploy). Copy `validate_pattern_wp.cjs`, `package.json` and `package-lock.json` into a directory OUTSIDE the repo and install there — Node resolves `@wordpress/*` by walking up from the script, so a copy works unchanged.
 
 ## Why it matters — the case that proved it
 
