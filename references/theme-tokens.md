@@ -44,7 +44,7 @@ layer of its own, and it IS the correct one to use here:
 | Plugin token | Looks like | Comes from |
 |---|---|---|
 | Fonts | `var(--cl-font1)`, `var(--cl-font2)` … | the font manager (below) |
-| Palette colours | `var(--cl-bg-color1)`, `var(--cl-txt-color1)`, `var(--cl-border-color1)` … | the colour palette. `var(--cl-page-bg-colorN)` (since 06-09-2026) is a PAGE surface (the store's page, or since 07-09-2026 one page's own content area — the chrome keeps the store colour) — the store's page background and a page's own override; a pattern never references it, a section stays on `bg-color` |
+| Palette colours | `var(--cl-bg-color1)`, `var(--cl-txt-color1)`, `var(--cl-border-color1)` … | the colour palette. `var(--cl-page-bg-colorN)` (since 06-09-2026) is a PAGE surface (the store's page, or since 07-09-2026 one page's own content area — the chrome keeps the store colour) — the store's page background and a page's own override; a pattern never references it, a section stays on `bg-color` — and the inverse holds too: **never fake a page background with a section background.** There is a door for it, `PUT /pages/{id}/plugin {"background": …}`; painting the root block instead produces a card inset by the page gutters. See `conversion-rules.md` → "Backgrounds: decide WHO owns the page width" |
 
 These are real, merchant-editable, and shared across the whole storefront — so a page that uses them
 restyles with the store instead of fighting it. Use them for anything the store owns (brand colour,

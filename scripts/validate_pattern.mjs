@@ -571,19 +571,79 @@ function paddingPx(v) {
   return m ? parseFloat(m[1]) : null;   // null = not px = shrinks or theme-owned = not our business
 }
 
+/** Containers the skill paints sections and cards with. Deliberately NOT `cover`, whose core
+ *  styles give its inner container its own inset -- flagging it would be a guess. */
+const PAINTED_CONTAINERS = new Set(["group", "column"]);
+
+/** Blocks that put TEXT directly against their parent's edge. */
+const DIRECT_TEXT_BLOCKS = new Set([
+  "heading", "paragraph", "list", "quote", "pullquote", "details", "preformatted", "verse", "table",
+]);
+
+/** True when a side is left at zero: absent, empty, or an explicit 0. A preset or any non-px unit
+ *  is REAL padding -- paddingPx returns null for those on purpose, so never read null as zero. */
+function zeroSide(v) {
+  if (v === undefined || v === null) return true;
+  const s = String(v).trim();
+  if (s === "") return true;
+  if (/^0(px|rem|em|%)?$/.test(s)) return true;
+  return paddingPx(v) === 0;
+}
+
+/** Does the block paint an edge of its own -- background, gradient or border? Only then is its
+ *  own boundary visible, and only then does zero horizontal padding become visible too. */
+function paintsAnEdge(attrs) {
+  const style = attrs.style || {};
+  const color = style.color || {};
+  if (color.background || color.gradient) return true;
+  if (attrs.backgroundColor || attrs.gradient) return true;
+  const b = style.border || {};
+  return Boolean(b.width || b.color || b.top || b.right || b.bottom || b.left);
+}
+
+/** Markers are a flat list, so walk forward to this block's own close and look at depth-0 children
+ *  only. A block whose children are all CONTAINERS is fine -- those own their inset and are each
+ *  checked in their own right. */
+function hasDirectTextChild(markers, i) {
+  if (markers[i].kind !== "open") return false;
+  let depth = 0;
+  for (let j = i + 1; j < markers.length; j++) {
+    const m = markers[j];
+    if (m.kind === "close") {
+      if (depth === 0) return false;
+      depth--;
+      continue;
+    }
+    if (depth === 0 && DIRECT_TEXT_BLOCKS.has(m.name)) return true;
+    if (m.kind === "open") depth++;
+  }
+  return false;
+}
+
 function checkHorizontalPadding(markers) {
   const errs = [];
   const warns = [];
-  for (const m of markers) {
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
     if (m.kind === "close" || !m.attrs) continue;
     const pad = ((m.attrs.style || {}).spacing || {}).padding;
+    const where = `wp:${m.name} at offset ${m.position}`;
+
+    // ---- THE FLOOR. Runs BEFORE the bail below, because the defect shape is a padding object
+    // carrying only top and bottom -- on which the old early-continue skipped the block entirely.
+    if (PAINTED_CONTAINERS.has(m.name) && paintsAnEdge(m.attrs)) {
+      const p = pad && typeof pad === "object" ? pad : {};
+      if (zeroSide(p.left) && zeroSide(p.right) && hasDirectTextChild(markers, i)) {
+        errs.push(`${where}: paints a background/border AND holds text directly, but sets no horizontal padding. The text will sit exactly ON the band's visible edge, both sides. The page width mode does NOT rescue this -- it insets the block INCLUDING its background, so the gap between the edge and the text stays 0 at every width mode and every viewport. Decide which of the three you meant: the PAGE should be this colour (use PUT /pages/{id}/plugin with background=var(--cl-page-bg-colorN) and drop this background), a full-width BAND (publish the page width_mode="none" AND pad this block), or a CARD (pad it and give it a radius). The corpus norm is 40px per side. Measured on a live store 20-09-2026: all SEVEN authored pages shipped "background-color:#ffffff;padding-top:72px;padding-bottom:80px" and every line touched the card edge.`);
+      }
+    }
+
     if (!pad || typeof pad !== "object") continue;
     const left = paddingPx(pad.left);
     const right = paddingPx(pad.right);
     if (left === null && right === null) continue;
     const sum = (left ?? 0) + (right ?? 0);
     const worst = Math.max(left ?? 0, right ?? 0);
-    const where = `wp:${m.name} at offset ${m.position}`;
     if (sum >= 200 || worst >= 150) {
       errs.push(`${where}: horizontal padding ${left ?? 0}px + ${right ?? 0}px = ${sum}px. A 375px phone leaves ~327px inside the store's gutters, so this leaves ~${Math.max(0, 327 - sum)}px for content. Padding does NOT shrink — never use it to control line length. Use a constrained contentSize or a % column width instead (conversion-rules.md).`);
     } else if (sum > 120) {
@@ -917,6 +977,14 @@ async function main() {
 }
 // Run only when invoked directly. Without this guard, `import`ing this module (audit_design.mjs
 // reuses findBlockMarkers) would execute a full corpus validation as a side effect.
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))) {
+// COMPARE REAL PATHS, NOT AS-TYPED ONES. Node resolves symlinks in `import.meta.url` but leaves
+// `process.argv[1]` exactly as invoked. This skill is installed at ~/.claude/skills/<skill> as a
+// SYMLINK into the repo (dev/link-skills.sh), so that is how every agent runs it -- and the two
+// sides never matched, the main block was skipped, and the script exited 0 having checked
+// NOTHING. Measured 20-09-2026: a file with real errors passed silently through the symlink and
+// failed correctly via the real path. Reported by a merchant build that published unvalidated
+// markup believing it had passed.
+const __realPath = (p) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+if (process.argv[1] && __realPath(process.argv[1]) === __realPath(fileURLToPath(import.meta.url))) {
   main();
 }

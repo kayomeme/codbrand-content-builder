@@ -376,11 +376,93 @@ reaches both edges.
    published with `width_mode: "none"` — `alignfull` removes the `max-width` and leaves the
    wrapper's padding standing. Ship `none`, or put the background on the root block and accept the
    gutters. Both are real answers; "the merchant has to change a setting" is not.
+   ⚠️ **Put the background on the root block and that block needs its OWN horizontal padding**
+   — see the floor below. The wrapper's gutters inset the block *and its background together*, so
+   they move the band inward without ever moving the text off the band's edge.
 3. **Keep using `align:"full"`** — it is still correct markup and still removes the max-width. Just
    never promise "full-bleed" from it ALONE, and never verify a width change at desktop only (see
    the narrow-viewport item in SKILL.md's checklist).
 
-## ⚠️ NEVER use fixed px horizontal padding to control text measure
+## Backgrounds: decide WHO owns the page width, ONCE, before you paint anything
+
+**Measured on a live store, 20-09-2026** (`snow-dotterel-624509.hostingersite.com`). Seven authored
+pages, every one on the padded default, every one carrying a single root block styled
+`background-color:#ffffff;padding-top:72px;padding-bottom:80px` — no horizontal padding, no radius,
+7 to 15 text children sitting directly inside it. The store page is `#f6f6f9`, so each page rendered
+a square white slab floating in grey with its text welded to both edges.
+
+**The same agent, on the same pages, got a small callout right every single time:**
+`background-color:#ebeaf3;padding:18px 22px;border-radius:3px`. It padded the SMALL painted element
+and left the BIG one bare — because it was not thinking of the root block as a box at all. **It was
+using a block background to set the PAGE background.** On a padded page that is not what a block
+background does: the page's gutters inset the block, so what you get is a card you never designed.
+
+### Three different jobs, three different doors
+
+| You want | Do this | Never |
+|---|---|---|
+| the whole page a different colour | `PUT /pages/{id}/plugin {"background": "var(--cl-page-bg-color2)"}` — the **Page Backgrounds** palette category, slots 23–26; slot 24 is literally "white page surface" | paint the root block |
+| full-width bands of alternating colour | publish the page `width_mode: "none"`, then each band paints its own background **and owns its horizontal padding** | `alignfull` + a background on a padded page — the band cannot reach the edges |
+| a card or callout | background **+ horizontal padding + a radius**, on that one block | a bare background |
+
+### The rule — ONE owner of the width per page
+
+- **The PAGE owns it** (the padded default; the right choice for prose — FAQ, legal, about, contact).
+  Root-level blocks then paint **NO** background and inherit the page's. Only a deliberate card
+  paints, and it carries padding and a radius so it reads as a card on purpose.
+- **The BLOCKS own it** (`width_mode: "none"`). Every band then paints its own background edge to
+  edge and owns its horizontal padding, because nothing else insets its text.
+
+Mixing the two is the defect above, and it is **silent**: every call returned `200`, and the page
+looks deliberate in a screenshot until you notice the text touching the slab.
+
+**The tell when reviewing generated markup:** a root-level block with a background, **radius 0**, and
+no horizontal padding is band markup that landed on a padded page. A real card has a radius.
+
+### Spacing has to ENCODE the grouping — and a default is not spacing
+
+Same pages, measured: inside a Q&A pair (`h2` → its answer) the gap was **0px**; between one pair and
+the next, **16px**. Both are browser defaults — the agent set no vertical spacing at all. It reads as
+one undifferentiated wall, with nothing showing where an answer ends and the next question begins.
+
+A group is legible when the gap INSIDE it is visibly smaller than the gap BETWEEN it and its
+neighbour, **and neither is zero**. Set both on purpose.
+
+**`blockGap` DOES work on the codbrand theme** — its `theme.json` declares `"appearanceTools": true`,
+which switches on `spacing.blockGap`. But it also declares `"defaultSpacingSizes": false`, so a
+`var:preset|spacing|N` value resolves to nothing and vanishes silently. **Give `blockGap` a literal**
+(`"24px"`), never a preset token. Both halves are already flagged by the validator —
+`checkBlockGapReliance` and `checkPresetTokens`.
+
+## ⚠️ Horizontal padding has a CEILING and a FLOOR — never use it to control text measure, never leave it at zero under a background
+
+*(This section was headed "NEVER use fixed px horizontal padding to control text measure" until
+20-09-2026. Everything it said was true and it is kept below — but it was the only rule in the skill
+about horizontal padding, and it only ever pushed the value DOWN. A build followed it, set
+`{"top","bottom"}` and nothing else, and shipped three pages with the text welded to a visible card
+edge. A one-directional rule reads as "less is safer". It is not.)*
+
+**Page width and block padding answer DIFFERENT questions, and they are not substitutes:**
+
+| | decides |
+|---|---|
+| the page's width mode | where the block's **outer edge** lands |
+| the block's own padding | where the **text** lands inside that edge |
+
+A block with no background is invisible, so zero horizontal padding is harmless — the page gutters
+are the only inset anyone can see. **The moment the block paints a background or a border, its own
+edge becomes visible**, and zero horizontal padding becomes text sitting exactly ON that edge. The
+page's gutters cannot rescue it, because they inset the background too.
+
+**Measured on a live store, 20-09-2026** (`snow-dotterel-624509.hostingersite.com`): the FAQ,
+delivery and contact pages each shipped one root block styled
+`background-color:#ffffff;padding-top:72px;padding-bottom:80px`. The page background is `#f6f6f9`,
+so the white card was plainly visible, 1248px wide — and the measured gap between the card's edge
+and the first character was **0px**, on every page, both sides. `validate_pattern.mjs` now ERRORS on
+this: a `group`/`column` that paints a background or border, holds text directly, and leaves both
+horizontal sides at zero.
+
+### The ceiling
 
 `padding` is a **fixed length: it does not shrink**. Using it to cap line length works at the width
 you were looking at and fails catastrophically at every narrower one.
@@ -398,9 +480,11 @@ validators passed.
 | A narrower column that stays LEFT-aligned with its neighbours | an inner `wp:column` with a `%` width | percentages shrink with the parent |
 | Breathing room at the edges | small symmetric padding (the corpus norm is 40px per side) | small enough to survive 327px |
 
-`validate_pattern.mjs` now warns above a 120px horizontal padding sum and errors at 200px — see its
+`validate_pattern.mjs` warns above a 120px horizontal padding sum and errors at 200px — see its
 `checkHorizontalPadding`. The corpus's own maximum is 80px (40+40), so the check cannot fire on
-house-style markup.
+house-style markup. **The same function carries the floor**: zero horizontal padding on a painted
+container that holds text directly is an error. A block whose children are all CONTAINERS is not
+flagged — those own their own inset and are each checked in their own right.
 
 ## Container mapping
 
