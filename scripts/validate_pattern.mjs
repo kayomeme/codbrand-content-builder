@@ -978,8 +978,8 @@ async function main() {
 // Run only when invoked directly. Without this guard, `import`ing this module (audit_design.mjs
 // reuses findBlockMarkers) would execute a full corpus validation as a side effect.
 // COMPARE REAL PATHS, NOT AS-TYPED ONES. Node resolves symlinks in `import.meta.url` but leaves
-// `process.argv[1]` exactly as invoked. This skill is installed at ~/.claude/skills/<skill> as a
-// SYMLINK into the repo (the CodBrand workspace's scripts/link-skills.mjs), so that is how every agent runs it -- and the two
+// `process.argv[1]` exactly as invoked. When this skill is reached through a SYMLINK (e.g.
+// ~/.claude/skills/<skill> linked to a clone), that is how every agent runs it -- and the two
 // sides never matched, the main block was skipped, and the script exited 0 having checked
 // NOTHING. Measured 20-09-2026: a file with real errors passed silently through the symlink and
 // failed correctly via the real path. Reported by a merchant build that published unvalidated

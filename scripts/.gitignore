@@ -1,8 +1,8 @@
 # Installed dependencies for validate_pattern_wp.cjs (~400 packages) — never committed.
-# OPTIONAL -- route 2 of the strict check, never required. Do NOT restore it here: this folder is
-# the codbrand-skills repo on a dev machine (scripts/link-skills.mjs links ~/.claude/skills into it), so `npm ci`
-# here puts 1.6 GB / ~138,000 files in the plugin. Copy validate_pattern_wp.cjs + package.json +
-# package-lock.json to a directory outside the repo and run `npm ci` there instead.
+# OPTIONAL -- route 2 of the strict check, never required. Do NOT install it here: if this skill
+# folder is a link into a git repo, `npm ci` here puts 1.6 GB / ~138,000 files in that repo. Copy
+# validate_pattern_wp.cjs + package.json + package-lock.json to a directory of your own and run
+# `npm ci` there instead.
 node_modules/
 
 # package-lock.json is deliberately COMMITTED. The negation is required because the

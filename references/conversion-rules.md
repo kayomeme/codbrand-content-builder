@@ -68,7 +68,7 @@ Count these markers in the source and in your output, and compare:
 **Counting is enough.** Source count vs output count, per marker. You do not need to match them up.
 
 ⚠️ **THE RULE IS *NAME IT*, NOT *PRESERVE IT*.** Every dropped marker gets one line in your
-delivery report; the owner decides. Do **not** write "always preserve" — that is a different error.
+delivery report; the user decides. Do **not** write "always preserve" — that is a different error.
 
 > Measured: three headings stacked with `<br>` were flattened silently. Told to match the original,
 > the conversion restored them — and was then asked for single-line headings after all. **The defect

@@ -200,7 +200,7 @@ Slots: size (JSON width/height AND img width/height must match), border color/wi
 
 An unstyled `wp:details` renders as a raw browser disclosure widget: measured live at `padding 0`,
 `border-top-width 0`, `margin-bottom 0`, summary in the theme default face. Both validators passed it
-and the owner named the FAQ first when saying the design was wrong. Copy this instead.
+and it was the first thing named when the design was judged wrong. Copy this instead.
 
 ```html
 <!-- wp:details {"summary":"Combien de temps dure la livraison ?","style":{"border":{"radius":"14px","width":"1px","color":"#e5e7eb"},"spacing":{"padding":{"top":"18px","right":"20px","bottom":"18px","left":"20px"},"margin":{"bottom":"12px"}},"typography":{"fontSize":"17px","fontWeight":"600"},"color":{"background":"#ffffff"}}} -->
@@ -351,7 +351,7 @@ computed_gap:            "normal"
 ```
 
 — literally 0px between a heading and its content, across several sections. Both validators passed;
-the owner found it on a screenshot. `validate_pattern.mjs` warns whenever `blockGap` appears, because
+it was found on a screenshot. `validate_pattern.mjs` warns whenever `blockGap` appears, because
 it cannot know the destination — the warning means "confirm this", not "remove it".
 
 **The OFF remedy — explicit margins, which DO emit inline CSS:**

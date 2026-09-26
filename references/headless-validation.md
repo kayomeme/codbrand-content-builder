@@ -9,12 +9,12 @@ There is a second, stronger option, **proven working in this project** (Aug 2026
 **Since 15-09-2026 it is the strict check's LOCAL FALLBACK** (route 2 of the strict check, `SKILL.md` step 5 (c)). A COD Leads storefront runs the same check on its own wp-admin page — the site's real WordPress, in the merchant's logged-in browser, with nothing installed — documented at `cl-api/v1/docs/block_markup_validation`. This validator is for when no such browser is available and the toolbox is installed, and it remains the tool that checks this skill's own snippets and corpus. Side by side on WordPress 7.1 the page and this validator agreed on every block; they differ only on HTML outside any block, which the page (like the editor) reads as a Classic block and this harness reports as `core/missing`, because nothing registers a Classic block in Node.
 
 ```bash
-# OPTIONAL (route 2 only). Copy the 3 files somewhere OUTSIDE the repo first -- see the warning below.
+# OPTIONAL (route 2 only). Copy the 3 files somewhere OUTSIDE the skill folder first -- see the warning below.
 cd <a directory of your own> && npm ci                              # one time, ~400 packages, 1.6 GB
 node .claude/skills/codbrand-content-builder/scripts/validate_pattern_wp.cjs [--verbose] [--json]
 ```
 
-⚠️ **Never install it INSIDE the skill folder on a machine where that folder is a link into a repo.** the CodBrand workspace's `scripts/link-skills.mjs` installs `~/.claude/skills/<skill>` as a junction into the plugin repo, so `npm ci` there puts **1.6 GB / ~138,000 files inside the plugin** (measured 20-09-2026; it also made the skill publish copy and then delete all of it, adding ~6 minutes to every deploy). Copy `validate_pattern_wp.cjs`, `package.json` and `package-lock.json` into a directory OUTSIDE the repo and install there — Node resolves `@wordpress/*` by walking up from the script, so a copy works unchanged.
+⚠️ **Install it in a directory of your own, never INSIDE the skill folder.** The toolbox is ~400 packages / **1.6 GB / ~138,000 files**, and if the skill folder is a link into a git repository, `npm ci` there puts all of it **inside that repository**. Copy `validate_pattern_wp.cjs`, `package.json` and `package-lock.json` into a directory outside the skill folder and install there — Node resolves `@wordpress/*` by walking up from the script, so a copy works unchanged.
 
 ## Why it matters — the case that proved it
 
@@ -80,17 +80,11 @@ const blocks = B.parse(fs.readFileSync("content.html", "utf8"));
 4. **Pin all four packages to one consistent set.** Left unpinned, npm mixed `block-library@10.4` with `block-editor@16.2` and produced wrong output. The set above is the pin used by the production tool `humanmade/block-runner`.
 5. **Version = a specific WordPress release.** These packages encode one WP version's `save()` functions. Output is only ground truth *for that version*. Pin to match the target site before acting on a diff (see next section).
 6. **Mute the console around import/parse.** Registration and failed validation print large React/blocktype dumps to stdout.
-7. **`parse()`'s `isValid` is NOT a strict verdict — also call `validateBlock()` on every block.** When markup matches an OLDER version of a block, `parse()` migrates it through the block's deprecations and reports it valid with no issue, and WordPress rewrites that markup the next time the page is saved — so what was published is not what stays. `B.validateBlock(block, block.name)` checks against the CURRENT block and catches it. Measured 15-09-2026 on the pinned packages, and live on WordPress 7.1: a paragraph with `"style":{"typography":{"fontSize":"18px"}}` in its JSON but no inline style in its HTML → `parse()` valid, `validateBlock()` invalid, and WordPress's own `save()` adds `style="font-size:18px"`. `validate_pattern_wp.cjs` trusted `isValid` until then and passed that markup; it now checks both, locked by `scripts/verify-ground-truth-validator.mjs`. Turning the check on surfaced 7 such blocks in 3 corpus pages, plus 2 snippets, all rewritten to the current form the same day: `core/cover` with the dim `<span>` before the `<img>` and a non-empty alt only on the `<img>` (the current `save()` puts the `<img>` first and reads alt from the JSON — fixing the order alone turns it into an outright failure); `core/button` with a numeric `"width":100` (current: `"style":{"dimensions":{"width":"100%"}}` on a plain `wp-block-button` wrapper); and a paragraph whose JSON repeated the `"margin"` key — JSON keeps only the last copy, so the `margin-right` in its HTML matched no current `save()`. *(The legacy text-alignment form below is not among them — it round-trips exactly, so it passes both checks.)* **One block is exempt from the second check: `core/html`.** WordPress's own `parse()` returns a Custom HTML block as valid before any check and keeps its markup exactly as written; on WordPress 7.1 its `save()` writes nothing, so `validateBlock()` would call every non-empty one outdated. The store's check page and `validate_pattern_wp.cjs` both skip it, as WordPress does — measured live on WordPress 7.1, 15-09-2026, where the page had been reporting every non-empty `wp:html` block as an older version.
+7. **`parse()`'s `isValid` is NOT a strict verdict — also call `validateBlock()` on every block.** When markup matches an OLDER version of a block, `parse()` migrates it through the block's deprecations and reports it valid with no issue, and WordPress rewrites that markup the next time the page is saved — so what was published is not what stays. `B.validateBlock(block, block.name)` checks against the CURRENT block and catches it. Measured 15-09-2026 on the pinned packages, and live on WordPress 7.1: a paragraph with `"style":{"typography":{"fontSize":"18px"}}` in its JSON but no inline style in its HTML → `parse()` valid, `validateBlock()` invalid, and WordPress's own `save()` adds `style="font-size:18px"`. `validate_pattern_wp.cjs` trusted `isValid` until then and passed that markup; it now checks both. Turning the check on surfaced 7 such blocks in 3 corpus pages, plus 2 snippets, all rewritten to the current form the same day: `core/cover` with the dim `<span>` before the `<img>` and a non-empty alt only on the `<img>` (the current `save()` puts the `<img>` first and reads alt from the JSON — fixing the order alone turns it into an outright failure); `core/button` with a numeric `"width":100` (current: `"style":{"dimensions":{"width":"100%"}}` on a plain `wp-block-button` wrapper); and a paragraph whose JSON repeated the `"margin"` key — JSON keeps only the last copy, so the `margin-right` in its HTML matched no current `save()`. *(The legacy text-alignment form below is not among them — it round-trips exactly, so it passes both checks.)* **One block is exempt from the second check: `core/html`.** WordPress's own `parse()` returns a Custom HTML block as valid before any check and keeps its markup exactly as written; on WordPress 7.1 its `save()` writes nothing, so `validateBlock()` would call every non-empty one outdated. The store's check page and `validate_pattern_wp.cjs` both skip it, as WordPress does — measured live on WordPress 7.1, 15-09-2026, where the page had been reporting every non-empty `wp:html` block as an older version.
 
 ## Calibration — does the pin set match the target WordPress?
 
-The pins encode ONE WordPress release. If the target site runs a different one, the validator can be confidently wrong. Check it:
-
-```
-node .claude/skills/codbrand-content-builder/scripts/calibrate_wp_version.cjs <path-to-wordpress-root>
-```
-
-It diffs the pinned packages against a real install's `wp-includes/blocks/*/block.json` and splits drift into *blocks we actually use* (matters) vs *dynamic/theme blocks* (safe to ignore).
+The pins encode ONE WordPress release. If the target site runs a different one, the validator can be confidently wrong. The CodBrand team re-calibrates the pins against each WordPress release — the pinned packages are diffed against a real install's `wp-includes/blocks/*/block.json`, and drift is split into *blocks we actually use* (matters) vs *dynamic/theme blocks* (safe to ignore). The results are below. If the site runs a newer WordPress than the last one below, trust route 1 (the store's own check page) over this validator.
 
 **Result against a WordPress 7.0.4 reference install**, Aug 2026 — 107 core blocks compared:
 
@@ -101,9 +95,9 @@ It diffs the pinned packages against a real install's `wp-includes/blocks/*/bloc
 | 8 dynamic blocks (`core/post-*`, `core/site-*`, `core/query-title`, `core/search`) | Irrelevant — patterns are static-only by design. |
 | `core/legacy-widget`, `core/widget-group` unregistered | Irrelevant. |
 
-**Conclusion: `validate_pattern_wp.cjs` verdicts are trustworthy for WordPress 7.0.4.** Re-run the calibration after any WordPress upgrade or version bump.
+**Conclusion: `validate_pattern_wp.cjs` verdicts are trustworthy for WordPress 7.0.4.**
 
-**Re-calibration for WordPress 7.1** (the same reference install, upgraded since) — 22-08-2026, 107 core blocks compared. `calibrate_wp_version.cjs` exits 1 and reports three drifted blocks we use. All three assessed BENIGN against this library:
+**Re-calibration for WordPress 7.1** (the same reference install, upgraded since) — 22-08-2026, 107 core blocks compared. The calibration reported three drifted blocks we use. All three assessed BENIGN against this library:
 
 | Drift reported | Verdict |
 |---|---|
@@ -173,7 +167,7 @@ Revisit only if the supported floor rises above the version where `style.typogra
 
 ### Re-examined under the "latest only" policy (23-08-2026) — conclusion UNCHANGED, basis narrower
 
-`CLAUDE.md` now forbids back-compatibility and retires the 6.7 → 7.1 range. That **voids reason 2**,
+This skill's policy (`SKILL.md` → "Target the CURRENT WordPress release") now forbids back-compatibility and retires the 6.7 → 7.1 range. That **voids reason 2**,
 which was the strongest of the three: "the only form valid across the project's whole stated range"
 is no longer an argument for anything, because there is no range any more.
 
@@ -212,7 +206,7 @@ Prints exactly what `save()` produces — every `has-*` class, exact inline-styl
 
 ## Rejected approach: loading WordPress's own bundled JS
 
-Tempting idea — point the validator at `wp-includes/js/dist/*.min.js` so it self-calibrates to whatever WP is installed. **Attempted and abandoned.** Those bundles are webpack builds expecting a full set of browser globals wired as externals; `react-jsx-runtime.min.js` never registers `window.ReactJSXRuntime` under plain jsdom evaluation, so `components`/`blocks`/`block-library` all fail to initialise (`(0, Z1.jsx) is not a function`). Making it work needs a real externals shim, not a load-order fix. The npm pin set plus `calibrate_wp_version.cjs` achieves the same confidence for far less complexity.
+Tempting idea — point the validator at `wp-includes/js/dist/*.min.js` so it self-calibrates to whatever WP is installed. **Attempted and abandoned.** Those bundles are webpack builds expecting a full set of browser globals wired as externals; `react-jsx-runtime.min.js` never registers `window.ReactJSXRuntime` under plain jsdom evaluation, so `components`/`blocks`/`block-library` all fail to initialise (`(0, Z1.jsx) is not a function`). Making it work needs a real externals shim, not a load-order fix. The npm pin set, re-calibrated against each WordPress release, achieves the same confidence for far less complexity.
 
 ## How the two validators divide the work
 

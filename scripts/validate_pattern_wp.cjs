@@ -30,8 +30,8 @@
  * teaching corpus that ships inside this skill.
  *
  * SETUP (OPTIONAL -- this is route 2, the fallback; route 1 is the store's own check page):
- *   copy this file + package.json + package-lock.json OUTSIDE the repo, then `npm ci` there.
- *   NEVER `npm ci` in the skill folder on a dev machine -- it is a junction into the plugin repo.
+ *   copy this file + package.json + package-lock.json OUTSIDE the skill folder, then `npm ci` there.
+ *   NEVER `npm ci` inside the skill folder -- if it is a link into a git repo, 1.6 GB lands in that repo.
  *
  * USAGE (from anywhere):
  *   node .claude/skills/codbrand-content-builder/scripts/validate_pattern_wp.cjs [file|dir] [--json] [--verbose]
@@ -77,9 +77,9 @@ if (!fs.existsSync(path.join(__dirname, "node_modules", "@wordpress", "blocks"))
     "the fallback. Route 1 is the store's own wp-admin check page, which needs\n" +
     "nothing installed and is preferred.\n\n" +
     "If you do want it, copy this file + package.json + package-lock.json into a\n" +
-    "directory OUTSIDE the repo and run `npm ci` there. Do NOT install in the skill\n" +
-    "folder: on a dev machine it is a junction into the plugin repo, so this puts\n" +
-    "1.6 GB / ~138,000 files inside the plugin.\n\n" +
+    "directory of your own and run `npm ci` there. Do NOT install in the skill\n" +
+    "folder: if it is a link into a git repository, this puts\n" +
+    "1.6 GB / ~138,000 files inside that repository.\n\n" +
     "(~400 packages, ~1.3 GB on disk (measured 15-09-2026). See references/headless-validation.md.)"
   );
 }
@@ -165,7 +165,7 @@ function findPatternFiles(dir, out = []) {
  * block carrying saved inner HTML does NOT, because a dynamic block must not have any.
  *
  * WHY A NAMESPACE RULE AND NOT A LIST OF BLOCK NAMES: which `cl/` blocks exist is an API-side fact,
- * and this skill's CLAUDE.md forbids copying those here — a hardcoded list goes stale the moment the
+ * and this skill never copies API facts — a hardcoded list goes stale the moment the
  * plugin adds a block. The NAMESPACE is the stable convention; the membership is not ours to hold.
  *
  * The trade-off is that a typo (`cl/produts-listing`) registers just as happily as a real block. It
@@ -273,8 +273,7 @@ for (const file of files) {
     // parse() migrates it and reports it valid with no issue, and WordPress rewrites that markup the
     // next time the page is saved — measured on WordPress 7.1, a paragraph came back with a second
     // paragraph nested inside it, and a button's width moved to a different setting. So every block
-    // parse() accepts is checked again against the CURRENT block type. Found 15-09-2026; locked by
-    // verify-ground-truth-validator.mjs.
+    // parse() accepts is checked again against the CURRENT block type. Found 15-09-2026.
     let isOlderVersion = false;
     if (!isMissing && block.isValid !== false) {
       mute();

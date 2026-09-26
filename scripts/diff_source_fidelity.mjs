@@ -10,7 +10,7 @@
  *
  * It REPORTS, it never fails (always exit 0). It cannot judge intent: dropping a `max-width` may be
  * exactly right for a destination whose width mode already owns the measure. The rule this serves is
- * NAME IT, NOT PRESERVE IT — every difference gets one line in the delivery report and the owner
+ * NAME IT, NOT PRESERVE IT — every difference gets one line in the delivery report and the user
  * decides. A tool that failed the build here would train people to "fix" deliberate decisions.
  *
  * USAGE
@@ -112,15 +112,15 @@ function main() {
 
   process.stdout.write(
     dropped
-      ? `\n${dropped} marker type(s) reduced. Put ONE LINE per row in the delivery report and let the owner decide.\n`
+      ? `\n${dropped} marker type(s) reduced. Put ONE LINE per row in the delivery report and let the user decide.\n`
       : "\nNo marker type lost.\n"
   );
   process.exit(0);
 }
 
 // COMPARE REAL PATHS, NOT AS-TYPED ONES. Node resolves symlinks in `import.meta.url` but leaves
-// `process.argv[1]` exactly as invoked. This skill is installed at ~/.claude/skills/<skill> as a
-// SYMLINK into the repo (the CodBrand workspace's scripts/link-skills.mjs), so that is how every agent runs it -- and the two
+// `process.argv[1]` exactly as invoked. When this skill is reached through a SYMLINK (e.g.
+// ~/.claude/skills/<skill> linked to a clone), that is how every agent runs it -- and the two
 // sides never matched, the main block was skipped, and the script exited 0 having checked
 // NOTHING. Measured 20-09-2026: a file with real errors passed silently through the symlink and
 // failed correctly via the real path. Reported by a merchant build that published unvalidated
