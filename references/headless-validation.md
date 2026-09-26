@@ -14,7 +14,7 @@ cd <a directory of your own> && npm ci                              # one time, 
 node .claude/skills/codbrand-content-builder/scripts/validate_pattern_wp.cjs [--verbose] [--json]
 ```
 
-⚠️ **Never install it INSIDE the skill folder on a machine where that folder is a link into a repo.** `dev/link-skills.sh` installs `~/.claude/skills/<skill>` as a junction into the plugin repo, so `npm ci` there puts **1.6 GB / ~138,000 files inside the plugin** (measured 20-09-2026; it also made the skill publish copy and then delete all of it, adding ~6 minutes to every deploy). Copy `validate_pattern_wp.cjs`, `package.json` and `package-lock.json` into a directory OUTSIDE the repo and install there — Node resolves `@wordpress/*` by walking up from the script, so a copy works unchanged.
+⚠️ **Never install it INSIDE the skill folder on a machine where that folder is a link into a repo.** the CodBrand workspace's `scripts/link-skills.mjs` installs `~/.claude/skills/<skill>` as a junction into the plugin repo, so `npm ci` there puts **1.6 GB / ~138,000 files inside the plugin** (measured 20-09-2026; it also made the skill publish copy and then delete all of it, adding ~6 minutes to every deploy). Copy `validate_pattern_wp.cjs`, `package.json` and `package-lock.json` into a directory OUTSIDE the repo and install there — Node resolves `@wordpress/*` by walking up from the script, so a copy works unchanged.
 
 ## Why it matters — the case that proved it
 

@@ -315,7 +315,7 @@ present, the markup validates, and the effect is simply absent.
 **The mechanism, verified in the companion theme's own stylesheet:**
 
 ```css
-/* dev/sub-projects/theme-codbrand/codbrand/style.css */
+/* theme-codbrand/codbrand/style.css */
 .alignwide,
 .alignfull {
     max-width: none;

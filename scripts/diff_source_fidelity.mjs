@@ -120,7 +120,7 @@ function main() {
 
 // COMPARE REAL PATHS, NOT AS-TYPED ONES. Node resolves symlinks in `import.meta.url` but leaves
 // `process.argv[1]` exactly as invoked. This skill is installed at ~/.claude/skills/<skill> as a
-// SYMLINK into the repo (dev/link-skills.sh), so that is how every agent runs it -- and the two
+// SYMLINK into the repo (the CodBrand workspace's scripts/link-skills.mjs), so that is how every agent runs it -- and the two
 // sides never matched, the main block was skipped, and the script exited 0 having checked
 // NOTHING. Measured 20-09-2026: a file with real errors passed silently through the symlink and
 // failed correctly via the real path. Reported by a merchant build that published unvalidated

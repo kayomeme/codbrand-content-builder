@@ -14,7 +14,7 @@ so `var:preset|spacing|80` resolves to nothing and the spacing silently vanishes
 
 ⚠️ **CORRECTED 19-09-2026 — "no `theme.json`" was the wrong test, and codbrand was the wrong
 example of it.** This block used to read *"a theme with no `theme.json`… Verified:
-`dev/sub-projects/theme-codbrand/codbrand/` contains **no `theme.json`**"*. It contains one, and has for a
+`theme-codbrand/codbrand/` contains **no `theme.json`**"*. It contains one, and has for a
 while. **The verdict for codbrand does not change** — the file sets
 `defaultPalette`/`defaultFontSizes`/`defaultSpacingSizes` all to `false` and declares no scales of
 its own, so there are still zero presets and literals are still the only thing that resolves. But
