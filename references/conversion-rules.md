@@ -81,8 +81,8 @@ Walk this for **every section** of the design. Skipping this is how patterns end
 
 | Aspect | What to check | Where it lands in the pattern |
 |---|---|---|
-| **Form inputs** (email, search, text) | Visible in design? | `wp:html` with styled `<input>` — never drop |
-| **Bordered chips** (country switcher, tag pill) | Subtle border + padding? | `wp:html` with `<span>` styled, OR `wp:button` with `style.border` |
+| **Form inputs** (email, search, text) | Visible in design? | A `wp:group` with border + padding settings holding a grey paragraph — it looks like an input and the merchant can restyle it (see "Non-native UI primitives") — never drop |
+| **Bordered chips** (country switcher, tag pill) | Subtle border + padding? | A `wp:group` (or `wp:button`) with `style.border` + padding settings — never a styled `wp:html` |
 | **Typography weight** | Regular / semi-bold / bold per element? | Explicit `style.typography.fontWeight` (e.g. `"400"`, `"600"`, `"800"`) |
 | **Font size** | Pixel-precise vs theme default? | Explicit `style.typography.fontSize` if design specifies |
 | **Letter spacing** | Tight, normal, loose? Branding usually has tracking. | `style.typography.letterSpacing` (e.g. `"0.1em"`) |
@@ -92,42 +92,29 @@ Walk this for **every section** of the design. Skipping this is how patterns end
 | **Borders / dividers** | Color, width, presence? | `style.border` on wrapper; `wp:separator` with custom color for dividers |
 | **Button width** | Auto, partial, or full-width? | `width:25` / `50` / `75` / `100` JSON attribute |
 | **Button shape** | Rounded, pill, or sharp? | `style.border.radius` (e.g. `"0px"`, `"9999px"`) |
-| **Icon style** | Colorful brand vs monochrome vs filled? | Match in placeholder URLs and final assets |
+| **Icon style** | Colorful brand vs monochrome vs filled? | Monochrome line icon: a bare `<svg>` coloured by its group's text colour (`SKILL.md` → "Icons"); colourful brand icon: an uploaded file in `wp:image` |
 | **Image position in card** | Background, side, top, bottom? | `wp:cover` for background; `wp:image` inline for top/bottom; `wp:media-text` or `wp:columns` for side-by-side |
 | **Content position over image** | Top/middle/bottom × left/center/right? | `wp:cover` with `contentPosition:"<v> <h>"` |
 | **Min-heights for matched columns** | All columns same height in design? | Explicit `style.dimensions.minHeight` or `wp:cover` `minHeight` |
 
-## Non-native UI primitives — use `wp:html`, do NOT drop
+## Non-native UI primitives — draw them with core blocks, do NOT drop
 
-If the design has any of these and there's no native equivalent or plugin available, ship a visual placeholder via `wp:html` and document the limitation in the pattern's `Description` header:
+If the design has any of these and there's no native equivalent or plugin available, draw a visual placeholder with core blocks and their settings, and name the limitation in your hand-over:
 
 - **Form inputs** (`<input>`, `<textarea>`, `<select>`)
 - **Currency / language switchers** with chevron arrows
 - **Custom dropdowns** (mega-menus, filter bars)
-- **Inline SVG icons** with custom paths (when no PNG/SVG asset is available)
 - **Range sliders / interactive controls**
 
-Example — email input placeholder:
-```html
-<!-- wp:html -->
-<input type="email" placeholder="Your email" aria-label="Your email" style="display:block;width:100%;padding:14px 16px;border:1px solid #d4d4d4;background:#ffffff;font-size:15px;color:#111111;font-family:inherit;outline:none;box-sizing:border-box"/>
-<!-- /wp:html -->
-```
+The look is block settings — a group's border, background, radius and padding, a paragraph's colour and size — so the merchant can restyle it in the block editor. An input is the group below ("The way to draw it"); a chip is the same group in flex layout with its label (and a chevron character) in the paragraph. What no setting can express is handed-over CSS (`SKILL.md` step 6).
 
-Example — bordered country chip:
-```html
-<!-- wp:html -->
-<span style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:1px solid #d4d4d4;background:#ffffff;font-size:14px;color:#111111">United States (USD $) <span aria-hidden="true">▾</span></span>
-<!-- /wp:html -->
-```
-
-Edge: `wp:html` content is opaque to the parser, so it sidesteps the serialization strictness — but it's NOT editable in the Inspector. Users edit it via the block's "Edit as HTML" mode. Use sparingly, only for elements where there's no native option.
+Edge: a `wp:html` is opaque to the block editor — nothing in it is a setting, and the merchant can change it only as code. So it never carries the look: at most it holds what no core block can draw, such as an icon's `<svg>` (`SKILL.md` → "Icons"). `validate_pattern.mjs` errors on any `style=""` inside a `wp:html`. *(Changed 30-09-2026: this section shipped two styled-`wp:html` examples — an `<input>` and a chip — which the validator now fails.)*
 
 ### ⚠️ `wp:html` sanitization — the tag decides, not the user role
 
 Content saved by users without the `unfiltered_html` capability (Editors, Authors, Contributors) is run through `wp_kses_post`. Whether content survives depends on the **tag**: decorative tags pass through for every role; interactive/executable tags are stripped. A `wp:html` block with an `<input>` that "works fine when I preview as admin" loses the input as soon as a non-admin saves the post — so `wp:html` for form inputs is fragile. See the allow/strip tables below for the exact rules.
 
-**Preferred alternative for visual fidelity:** style a `wp:group` (with `style.color.background`, `style.border`, `style.spacing.padding`) to LOOK like an input field, with an inner `wp:paragraph` containing placeholder-styled text (gray color, e.g. `#9ca3af`). The rendered group looks identical to a real input in most contexts, but renders for every user role.
+**The way to draw it — block settings:** style a `wp:group` (with `style.color.background`, `style.border`, `style.spacing.padding`) to LOOK like an input field, with an inner `wp:paragraph` containing placeholder-styled text (gray color, e.g. `#9ca3af`). The rendered group looks identical to a real input in most contexts, but renders for every user role.
 
 ```html
 <!-- wp:group {"style":{"color":{"background":"#ffffff"},"border":{"width":"1px","color":"#d4d4d4"},"spacing":{"padding":{"top":"14px","right":"16px","bottom":"14px","left":"16px"}}},"layout":{"type":"constrained"}} -->
@@ -140,6 +127,9 @@ Content saved by users without the `unfiltered_html` capability (Editors, Author
 ```
 
 ### What `wp_kses_post` actually allows vs. strips
+
+These tables are what WordPress's HTML filter lets through — **not what this skill uses**. Whatever kses
+allows, any `style=""` inside a `wp:html` fails step 5 (a): the merchant cannot change it in the editor.
 
 **✅ Safe via `wp:html` (renders for every user role)** — these tags pass through `wp_kses_post`:
 
@@ -161,37 +151,35 @@ Content saved by users without the `unfiltered_html` capability (Editors, Author
 
 **Decision rule:**
 
-- **Need an SVG icon, decorative div, bordered chip, custom-positioned element, outlined text via `-webkit-text-stroke`?** → Use `wp:html` confidently. It works for every user role.
-- **Need a real `<input>`, `<form>`, `<select>`, `<button type="submit">`, or `<script>`?** → DON'T use `wp:html`. Build a styled `wp:group` mimicking the visual (see "Preferred alternative" above) or use a real native block (`wp:search`, `wp:categories displayAsDropdown:true`, etc.).
+- **An icon?** → a bare `<svg>` in a `wp:html`, sized and coloured by the settings of its Icon group (`SKILL.md` → "Icons"). **A chip, a badge, a decorative box?** → a core group with border, background, radius and padding settings. **An effect no setting can express** (outlined text via `-webkit-text-stroke`, an absolute-positioned decoration)? → build the static version with settings and hand the CSS over with its level and a `className` (`SKILL.md` step 6) — never a styled `wp:html`, which the merchant could not change.
+- **Need a real `<input>`, `<form>`, `<select>`, `<button type="submit">`, or `<script>`?** → DON'T use `wp:html`. Build a `wp:group` mimicking the visual with settings (see "The way to draw it" above) or use a real native block (`wp:search`, `wp:categories displayAsDropdown:true`, etc.).
 
-### ⚠️ Editor UX caveat — `wp:html` shows RAW CODE in the editor by default
+### `wp:html` in the block editor — measured on WordPress 7.1
 
-Even when `wp:html` content WOULD render correctly on the frontend, the WordPress block editor shows the raw HTML/CSS as a **code preview** by default (each `wp:html` block displays its source in a small scrollable code box). The user has to click each block's "Preview" button to see the rendered version. For patterns where editors review/tweak the layout in the block editor, this is a poor experience.
+The block editor shows a Custom HTML block that is not being edited as a **live preview** (measured
+30-09-2026, WordPress 7.1): an icon's `<svg>` inside one previews at the size and colour its group's
+settings give it, and changing those settings in the editor changes the icon. *(An earlier version of
+this section said the editor shows raw code by default and the preview needs a click, and used that to
+recommend icons as images — neither holds on WordPress 7.1.)*
 
-**Better alternative for SVG icons and small decorative shapes:** use `wp:image` with an inline-SVG **data URI** as the `src`. This renders in both editor AND frontend, and gives the user the standard image-block toolbar (Replace, alt text, etc.).
+**⚠️ A data URI in `wp:image src` does NOT survive WP's pipeline.** While browsers render data URIs fine, WP's editor parses `<img src=...>` on paste and gets confused by HTML-special characters inside the data URI (`<`, `>`, `'` from inline SVG). The saved `wp:image` block ends up with an empty `url` attribute — broken image on frontend, even for admin users. Tested and confirmed.
 
-```html
-<!-- wp:image {"width":"48px","height":"48px","sizeSlug":"full","linkDestination":"none"} -->
-<figure class="wp-block-image size-full is-resized"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none'><rect x='0.5' y='0.5' width='23' height='23' rx='4' stroke='white' stroke-opacity='0.4'/><path d='M12 7v10m5-5H7m3.5-3.5L8.5 14.5m7 0L8.5 8.5' stroke='white' stroke-width='1' stroke-linecap='round'/></svg>" alt="" style="width:48px;height:48px"/></figure>
-<!-- /wp:image -->
-```
+**An icon is never an image URL** — the page would load it from another site on every view, and its
+colour could not follow the text colour. Placeholder IMAGES are another matter:
 
-**⚠️ Data URI in `wp:image src` does NOT survive WP's pipeline.** While browsers render data URIs fine, WP's editor parses `<img src=...>` on paste and gets confused by HTML-special characters inside the data URI (`<`, `>`, `'` from inline SVG). The saved `wp:image` block ends up with an empty `url` attribute — broken image on frontend, even for admin users. Tested and confirmed.
-
-**Use external URLs instead** for any `wp:image` icon/decoration:
-
-| What you need | Recommended URL source |
+| What you need | Use |
 |---|---|
-| **SVG icons** (bolt, plus, asterisk, arrows, social, brand logos) | [Iconify](https://api.iconify.design/) — `https://api.iconify.design/<set>:<icon>.svg?color=white&width=48&height=48`. Browse icons at [icones.js.org](https://icones.js.org/). 200,000+ icons across 150+ icon sets. |
-| **Solid color rectangles** (dividers, accent bars) | `https://placehold.co/96x4/C14436/C14436` — both bg and fg same color = solid color rect. |
-| **Image placeholders** (hero, photos, logos) | `https://placehold.co/<W>x<H>/<bgHex>/<textHex>?text=Label` |
+| **Line icons** (bolt, plus, arrows, delivery, payment) | a bare `<svg>` in a `wp:html` (`SKILL.md` → "Icons"). [Iconify](https://api.iconify.design/) is where its code comes from at authoring time — `https://api.iconify.design/<set>/<name>.svg` returns it already sized `1em` in `currentColor`; browse at [icones.js.org](https://icones.js.org/). The page never loads it. |
+| **Brand / multi-colour logos** | a `wp:image` of an uploaded file |
+| **Solid color rectangles** (dividers, accent bars) | block settings — a border or a `wp:separator` with its colour — not an image |
+| **Image placeholders** (hero, photos) | `https://placehold.co/<W>x<H>/<bgHex>/<textHex>?text=Label` — meant to be replaced |
 
 
 ### 🔴 Asset URL rules — what a portable pattern may reference
 
 | Source | Allowed? | Why |
 |---|---|---|
-| `placehold.co`, `ui-avatars.com`, `api.iconify.design` | ✅ | Stable placeholder services — the pattern's images are meant to be replaced by the user anyway |
+| `placehold.co`, `ui-avatars.com` | ✅ | Stable placeholder services — the pattern's images are meant to be replaced by the user anyway. *(`api.iconify.design` was listed here until 30-09-2026; an icon is inline svg now, never a URL — `SKILL.md` → "Icons".)* |
 | Gradients / solid `style.color.background` instead of an image | ✅ preferred | Zero external dependency (Automattic's official skill recommends this when no real asset exists) |
 | Theme-shipped asset via `<?php echo esc_url( get_theme_file_uri( 'assets/images/x.jpg' ) ); ?>` | ✅ (php only) | Child-theme aware — preferred over `get_template_directory_uri()` |
 | **Dev/staging/client site URLs** (`*.hostingersite.com`, `woo.test`, any project host) | ❌ NEVER | They rot, leak the environment, and break when the site moves. This bit us: `product-grid-4-col` shipped 10 live Hostinger URLs |
@@ -227,10 +215,11 @@ Rule of thumb: if the URL contains a hostname you or the client control, it does
   know whether it will be first on the page, say so in its `Description` so whoever assembles the page
   can promote its top heading.
 
-**When to use `wp:html` vs `wp:image` external URL:**
-- Tiny shapes, lines, dividers, icons → `wp:image` with **external URL** (renders in editor + frontend, swappable via Replace toolbar)
-- Multi-element decorations that need separate styling → `wp:html` (accept the editor code-preview UX, but only for `<div>`/`<span>`/`<svg>` content that survives `wp_kses_post`)
-- Anything an editor user might want to swap → `wp:image` external URL (toolbar Replace button)
+**When to use `wp:html` vs `wp:image`:**
+- A line icon → a bare `<svg>` in a `wp:html`, sized and coloured by its Icon group (`SKILL.md` → "Icons")
+- A raster or multi-colour icon, or anything the merchant should swap with the toolbar's Replace → `wp:image` of an uploaded file
+- Lines, dividers, bars → block settings (a border, a `wp:separator`), not an image
+- Multi-element decorations → core groups with their settings; what no setting can express is handed-over CSS (`SKILL.md` step 6) — never a styled `wp:html`
 
 ### Badge/label overlaid on an image — `wp:cover` recipe (one overlay region only)
 
@@ -517,7 +506,7 @@ flagged — those own their own inset and are each checked in their own right.
 | Multiple images grid | `wp:gallery` |
 | Image left + text right | `wp:media-text` |
 | `<iframe src="youtube...">` | `wp:embed` with `providerNameSlug:"youtube"` |
-| Inline SVG | If asset available, `wp:image`. Last resort: `wp:html`. |
+| Inline SVG (an icon) | A bare `<svg>` in a `wp:html` inside an Icon group — `SKILL.md` → "Icons". A multi-colour logo: `wp:image` of an uploaded file. |
 
 ## Interactive elements
 

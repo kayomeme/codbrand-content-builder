@@ -22,6 +22,11 @@
  *   - no older block form WordPress rewrites on save: a numeric wp:button "width", a wp:cover dim
  *     <span> ahead of its background media, a wp:cover <img> alt that the JSON "alt" does not match
  *   - no HTML outside any block (WordPress silently makes it a Classic block)
+ *   - nothing hand-styled inside a wp:html (a Custom HTML block has no settings, so the merchant can
+ *     change nothing in it from the block editor), and an icon svg there sized in em and coloured with
+ *     currentColor (warnings)
+ *   - no <style> and no <script> element anywhere in the content
+ *   - rows that draw their own divider sit in a container whose Block spacing is set on purpose (warning)
  *
  * TWO MODES:
  *   node validate_pattern.mjs path/to/markup.html   validate ONE file — what an agent just made
@@ -434,6 +439,113 @@ function checkInlineStyleWhitelist(content) {
 }
 
 /**
+ * The inside of every Custom HTML (`wp:html`) block. It has no inner blocks, so its content runs to the
+ * first closing delimiter. Found by the delimiters rather than by the balance walk, so it works on
+ * markup that does not balance too.
+ */
+const HTML_BLOCK_RE = /<!--\s*wp:html(?:\s[^]*?)?-->([\s\S]*?)<!--\s*\/wp:html\s*-->/g;
+
+function htmlBlockSegments(text) {
+  const segments = [];
+  for (const m of text.matchAll(HTML_BLOCK_RE)) {
+    segments.push({ offset: m.index, innerStart: m.index + m[0].indexOf("-->") + 3, inner: m[1] });
+  }
+  return segments;
+}
+
+/**
+ * The same text with the inside of every wp:html blanked out, length kept, so offsets still hold. The
+ * serialization whitelist is about what WordPress's block supports write; nothing inside a wp:html is
+ * written by them, so that check must not read it — checkHtmlBlockContent owns it, with the right advice.
+ */
+function maskHtmlBlocks(text) {
+  let out = text;
+  for (const s of htmlBlockSegments(text)) {
+    out = out.slice(0, s.innerStart) + " ".repeat(s.inner.length) + out.slice(s.innerStart + s.inner.length);
+  }
+  return out;
+}
+
+/**
+ * What sits inside a wp:html — the one place in block markup the merchant cannot change from the block
+ * editor. `core/html` declares no settings at all (className, customClassName and customCSS are all off
+ * in its block.json), so every colour, size, gap or border written in there is frozen for them. The rule
+ * (owner, 30-09-2026): block settings first; CSS that no setting can express goes to a custom-code level,
+ * never into the content. So:
+ *   - any style="" inside a wp:html is an ERROR — the look belongs to the core blocks around it;
+ *   - an icon <svg> there is sized in em and painted with currentColor, so the font size and text colour
+ *     of the group around it — both editor settings — size and colour it. A fixed size or colour is a
+ *     WARNING: a multi-colour brand logo legitimately keeps its colours.
+ *
+ * Why a check and not only prose: both halves of the rule were already written in SKILL.md, and a real
+ * store still shipped four custom blocks of hand-styled wp:html rows (7-15 findings each by this
+ * validator). WordPress's own check passes them — any HTML is valid inside a wp:html — and the store's
+ * structural check does not look inside one either, so this validator is the only check that does. One
+ * of those boxes also lost 72 of its 252px to the theme's block gap.
+ */
+const STYLE_ATTR_RE = /<([a-zA-Z][\w:-]*)\b[^>]*?\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+const SVG_PAINT_OK = new Set(["currentcolor", "none", "transparent"]);
+
+function checkHtmlBlockContent(text) {
+  const errs = [];
+  const warns = [];
+  for (const seg of htmlBlockSegments(text)) {
+    const where = `wp:html at offset ${seg.offset}`;
+
+    const styled = [];
+    for (const m of seg.inner.matchAll(STYLE_ATTR_RE)) {
+      const props = (m[2] ?? m[3] ?? "").split(";").map((d) => d.split(":")[0].trim().toLowerCase()).filter(Boolean);
+      styled.push(`${m[1].toLowerCase()}: ${props.join(", ") || "(empty)"}`);
+    }
+    if (styled.length) {
+      errs.push(`${where}: ${styled.length} hand-written style="" (${styled.slice(0, 4).join("; ")}${styled.length > 4 ? "; …" : ""}) — a Custom HTML block has no settings, so the merchant cannot change any of this in the block editor. Build the look with core blocks and their settings around it: an icon is a bare <svg> in an Icon group (SKILL.md → "Icons", snippets.md #5), text is a paragraph, rows and dividers are groups (snippets.md #13). If no block setting can express it, hand the CSS over with its level instead (SKILL.md step 6) and hook it with the block's className.`);
+    }
+
+    for (const open of seg.inner.matchAll(/<svg\b[^>]*>/gi)) {
+      const tag = open[0];
+      const end = seg.inner.indexOf("</svg>", open.index);
+      const whole = seg.inner.slice(open.index, end === -1 ? undefined : end);
+      const problems = [];
+      const w = (tag.match(/\swidth\s*=\s*["']([^"']*)["']/i) ?? [])[1];
+      const h = (tag.match(/\sheight\s*=\s*["']([^"']*)["']/i) ?? [])[1];
+      if (w === undefined || h === undefined) {
+        problems.push(`no width/height — it fills its container`);
+      } else if (!/^\s*[\d.]*em\s*$/i.test(w) || !/^\s*[\d.]*em\s*$/i.test(h)) {
+        problems.push(`a fixed size (width="${w}" height="${h}")`);
+      }
+      const paints = [...new Set([...whole.matchAll(/\s(fill|stroke)\s*=\s*["']([^"']*)["']/gi)]
+        .filter((p) => !SVG_PAINT_OK.has(p[2].trim().toLowerCase()))
+        .map((p) => `${p[1]}="${p[2]}"`))];
+      if (paints.length) {
+        problems.push(`a fixed colour (${paints.slice(0, 3).join(", ")}${paints.length > 3 ? ", …" : ""})`);
+      }
+      if (problems.length) {
+        warns.push(`${where}: icon <svg> with ${problems.join(" and ")} — the merchant cannot change it from the block editor. Write width="1em" height="1em" and fill/stroke="currentColor", then size and colour it with the font size and text colour of the Icon group around it (SKILL.md → "Icons"). A multi-colour brand logo keeps its colours; then only the size half applies.`);
+      }
+    }
+  }
+  return { errs, warns };
+}
+
+/**
+ * A <style> or <script> element anywhere in the content. Both were forbidden in prose only (the
+ * checklist). Under the rule, CSS and JavaScript that no block setting can express are handed over with
+ * the level they go on (SKILL.md step 6), never written into the content, where the merchant can neither
+ * see nor change them in the block editor. Block comments are blanked first, so a word inside a
+ * block's JSON cannot trip it.
+ */
+function checkStyleScriptElements(text) {
+  const stripped = text.replace(/<!--[\s\S]*?-->/g, (c) => " ".repeat(c.length));
+  const issues = [];
+  for (const m of stripped.matchAll(/<(style|script)\b/gi)) {
+    const tag = m[1].toLowerCase();
+    const what = tag === "style" ? "CSS" : "JavaScript";
+    issues.push(`<${tag}> element at offset ${m.index} — ${what} does not belong in the content: the merchant can neither see nor change it in the block editor. Use the blocks' own settings; if none can express it, hand the ${what} over with its level instead (SKILL.md step 6).`);
+  }
+  return issues;
+}
+
+/**
  * Emoji used as icon placeholders must be a conscious, documented choice:
  * the accessibility rules (conversion-rules.md) require flagging them to the
  * user, and the pattern's Description header must tell the user to replace
@@ -496,6 +608,69 @@ function checkBlockGapReliance(text) {
   return [
     `blockGap used ${n}× — it emits NO CSS by itself and is discarded entirely unless the DESTINATION theme opts into spacing.blockGap (EITHER via theme.json OR via add_theme_support('appearance-tools') on a classic theme — so you must DETECT it, not infer it from the theme being classic). Confirm the destination supports it, or set explicit margins on the children instead.`,
   ];
+}
+
+/** The blocks directly inside the container opened at markers[i] (depth 0 only). */
+function directChildren(markers, i) {
+  const kids = [];
+  if (markers[i].kind !== "open") return kids;
+  let depth = 0;
+  for (let j = i + 1; j < markers.length; j++) {
+    const m = markers[j];
+    if (m.kind === "close") {
+      if (depth === 0) break;
+      depth--;
+      continue;
+    }
+    if (depth === 0) kids.push(m);
+    if (m.kind === "open") depth++;
+  }
+  return kids;
+}
+
+/** A row that draws its own divider: a top or bottom border and no other side. A full border is a card. */
+function drawsOnlyADivider(attrs) {
+  const b = attrs?.style?.border;
+  if (!b || b.width || b.color || b.style || b.left || b.right) return false;
+  return Boolean(b.top || b.bottom);
+}
+
+/**
+ * Rows that draw their own divider, in a container that never chose its Block spacing.
+ *
+ * The rows' own padding and divider are the spacing of such a list; any gap on top of them is dead space
+ * under each line. A container that sets no blockGap does not get 0 — on a destination with block-gap
+ * support every child after the first takes WordPress's default gap. Measured on one storefront
+ * (30-09-2026): 24px under each of three dividers, 72 of a 252px trust box, on a theme whose support is
+ * on. With support OFF the blockGap is discarded and a flow container gives 0 (a flex one 0.5em —
+ * snippets.md → blockGap), so a FLOW list with blockGap "0" renders 0 on both kinds of theme.
+ *
+ * A WARNING: the markup cannot see the destination. In flow layout a row that sets its own top margin
+ * overrides the default gap, so a list whose rows all do is left alone; in flex or grid only the gap
+ * itself counts. Cards with a full border want a gap and are not rows here; rows with padding but no
+ * divider are too ambiguous to judge from markup and stay in prose (SKILL.md step 3).
+ */
+const DIVIDER_CONTAINERS = new Set(["group", "column"]);
+
+function checkDividerRowsGap(markers) {
+  const issues = [];
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    if (m.kind !== "open" || !DIVIDER_CONTAINERS.has(m.name)) continue;
+    const gap = m.attrs?.style?.spacing?.blockGap;
+    if (gap !== undefined && gap !== null && gap !== "") continue;
+    const rows = directChildren(markers, i).filter((k) => drawsOnlyADivider(k.attrs));
+    if (rows.length < 2) continue;
+    const type = m.attrs?.layout?.type ?? "default";
+    const flow = type === "default" || type === "constrained";
+    const ownMargins = rows.every((k) => {
+      const top = k.attrs?.style?.spacing?.margin?.top;
+      return top !== undefined && top !== null && top !== "";
+    });
+    if (flow && ownMargins) continue;
+    issues.push(`wp:${m.name} at offset ${m.position}: ${rows.length} of its rows draw their own divider (a top or bottom border only), but the ${m.name} sets no Block spacing (style.spacing.blockGap). On a destination with block-gap support WordPress puts its default gap between every divider and the next row — measured on one storefront: 24px under each of three dividers, 72 of a 252px box. Set the ${m.name}'s blockGap on purpose — "0" when the rows' own padding and dividers are the spacing (snippets.md #13).`);
+  }
+  return issues;
 }
 
 /**
@@ -590,15 +765,19 @@ function zeroSide(v) {
   return paddingPx(v) === 0;
 }
 
-/** Does the block paint an edge of its own -- background, gradient or border? Only then is its
- *  own boundary visible, and only then does zero horizontal padding become visible too. */
+/** Does the block paint a SIDE edge of its own -- background, gradient, a full border, or a left or
+ *  right border? Only then is its side boundary visible, and only then does zero horizontal padding
+ *  become visible too.
+ *  A top- or bottom-only border is a DIVIDER: it has no side edge for the text to touch, and a list of
+ *  divider rows inside a padded card is correct with 0 horizontal padding on the rows. Counting it here
+ *  failed the core-block rebuild of a real trust box with one false error per divider row (30-09-2026). */
 function paintsAnEdge(attrs) {
   const style = attrs.style || {};
   const color = style.color || {};
   if (color.background || color.gradient) return true;
   if (attrs.backgroundColor || attrs.gradient) return true;
   const b = style.border || {};
-  return Boolean(b.width || b.color || b.top || b.right || b.bottom || b.left);
+  return Boolean(b.width || b.color || b.right || b.left);
 }
 
 /** Markers are a flat list, so walk forward to this block's own close and look at depth-0 children
@@ -844,10 +1023,15 @@ export function validateMarkup(markup) {
     for (const issue of checkCodBrand(markup, markers)) errors.push(issue);
     for (const issue of checkFragmentTargets(markup, markers)) errors.push(issue);
     for (const issue of checkHtmlOutsideBlocks(markup, markers)) errors.push(issue);
+    for (const issue of checkDividerRowsGap(markers)) warnings.push(issue);
   }
 
   for (const issue of checkHtmlCorruption(markup, false)) errors.push(issue);
-  for (const issue of checkInlineStyleWhitelist(markup)) errors.push(issue);
+  for (const issue of checkInlineStyleWhitelist(maskHtmlBlocks(markup))) errors.push(issue);
+  const html = checkHtmlBlockContent(markup);
+  for (const issue of html.errs) errors.push(issue);
+  for (const issue of html.warns) warnings.push(issue);
+  for (const issue of checkStyleScriptElements(markup)) errors.push(issue);
   for (const issue of checkDeadLinks(markup)) errors.push(issue);
   for (const issue of checkEmojiPlaceholders(markup)) warnings.push(issue);
   for (const issue of checkBlockGapReliance(markup)) warnings.push(issue);

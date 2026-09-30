@@ -1,10 +1,13 @@
 # Output Format
 
 What you produce is **one file of block markup** and four facts about it: a title, a slug, which
-resource it belongs on, and the width the page should render at. That is the whole deliverable. There
-is no pattern header, no `.php` twin, no folder convention, and no library to add it to.
+resource it belongs on, and the width the page should render at — plus a fifth only when something
+could not be a block setting: the **forced CSS or JavaScript**, with its level and the class it hooks
+(below). That is the whole deliverable. There is no pattern header, no `.php` twin, no folder
+convention, and no library to add it to.
 
-The file plus those four facts is everything a publish needs, whatever route does the publishing:
+The file plus those four facts is everything a publish needs — with the fifth applied at its level
+when there is one — whatever route does the publishing:
 
 ```
 content     →  out/crepiere-landing.html          (the markup file, read by path)
@@ -45,7 +48,7 @@ would paste into the block editor's code view, and exactly what the API stores b
 read by path and nothing looks for it in any particular place. This skill commits it nowhere, and once
 published the site's own revision history is the durable copy.
 
-## The four facts
+## The four facts (and the optional fifth)
 
 | | | |
 |---|---|---|
@@ -53,6 +56,7 @@ published the site's own revision history is the durable copy.
 | **slug** | **The identity.** | Most routes look this slug up on the live site: found → UPDATE that row, absent → CREATE. That is the entire mechanism behind "re-publishing updates instead of duplicating", so a changed slug creates a second page rather than editing the first. Usually defaults to the slugified title — confirm it for your route. |
 | **target** | Which resource the content lands on. | The names below are a COD Leads storefront's; another destination will have its own set. |
 | **width_mode** | How wide the content renders. | `""` inherits the theme default (`cl-full-width-padded` on codbrand — a gutter on both sides), **`none`** removes the wrapper for true edge-to-edge, or name one of the four store width classes. **A banded, full-bleed layout needs `none`** — `align:"full"` alone cannot escape the wrapper's padding, and **no store setting controls an ordinary page's width**, so if you do not deliver this value nobody else will. See `conversion-rules.md` → "`align:\"full\"` does NOT mean full-bleed". A destination without per-page width simply ignores it. |
+| *forced CSS / JS* | Only what no block setting can express — a hover, an animation, a `::before`, a media query. Most deliveries have none. | The code, **the level it goes on** (the narrowest one that reaches every place the content shows — a page, a product, the design of the one surface a custom block sits on, or the store) and **the class it hooks**, set on the block as `className`. Merge into what the level already holds; never overwrite. Never a block's own "Custom CSS" field — it does not survive a save through an API. Full rule: `SKILL.md` step 6. |
 
 ## Choosing the target
 
@@ -64,7 +68,9 @@ published the site's own revision history is the durable copy.
 - **`products`** — the plugin renders its own product UI (gallery, price, quantity offers,
   add-to-cart) and your content is appended **BELOW** it. Do not write a second hero, a second price,
   or your own order button; use the plugin's real one.
-- **`custom_blocks`** — a reusable fragment the merchant places from the plugin's admin.
+- **`custom_blocks`** — a reusable fragment the merchant places from the plugin's admin. Authored and
+  checked exactly like a page, and placed to render WITH the page — a block loaded after the page loses
+  the CSS behind its layout settings (`SKILL.md` step 2).
 
 On any other destination, establish the equivalent before authoring. If you cannot, assume your
 content owns the whole page and has to say everything itself.

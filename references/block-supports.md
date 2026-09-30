@@ -351,11 +351,16 @@ Contains inner blocks for the answer.
 ### `core/embed`
 For YouTube, Vimeo, Twitter, etc. Specify `"providerNameSlug":"youtube"` and `"url":"..."`.
 
-## What you CANNOT do natively (forces `wp:html` or graceful drop)
+## What you CANNOT do with block settings (handed-over CSS — never a styled `wp:html`)
+
+These have no block setting. Build the static version with settings; the CSS is handed over with the
+level it belongs on and hooked by the block's `className` (`SKILL.md` step 6) — never a styled
+`wp:html`, whose content the merchant cannot change from the editor (`validate_pattern.mjs` errors on it):
 
 - Hover-only style changes (color shift on `:hover`).
 - CSS animations / transitions.
 - `:before`/`:after` pseudo-elements with content.
-- Sticky positioning beyond what `wp:cover` provides.
-- Inline SVG with custom paths (use `wp:image` with an SVG file).
+- Sticky positioning beyond what a group's Sticky position setting and `wp:cover` provide.
+- Inline SVG with custom paths — not CSS at all: a bare `<svg>` in a `wp:html`, sized and coloured by the
+  settings of its Icon group (`SKILL.md` → "Icons").
 - Forms (no native form block — escalate to user).

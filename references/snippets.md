@@ -99,19 +99,41 @@ Slots: name, background, radius, paddings, orientation. **`layout` NEVER emits i
 
 ⚠️ **Vertical flex shrink-wraps children** — only use it when card children should be aligned at content width (centered image/icon stacks). If any child must span the card's full width (colored top band, full-width row), use `"layout":{"type":"default"}` instead, and give inner rows that need flex their own flex `wp:group`. See `block-supports.md` → Layout.
 
-## 5. Icon tile (colored rounded square with white line-art icon)
+## 5. Icon tile (colored rounded square with a line icon)
+
+The icon is a bare `<svg>` in a `wp:html`, and the TILE's settings draw it: its **text colour** is the
+icon's colour and its **font size** is the icon's size, so the merchant recolours or resizes the icon from
+the block editor. See `SKILL.md` → "Icons".
 
 ```html
-<!-- wp:group {"metadata":{"name":"Icon Tile"},"style":{"color":{"background":"#d63d3d"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"22px","right":"22px","bottom":"22px","left":"22px"}}},"layout":{"type":"flex","justifyContent":"center"}} -->
-<div class="wp-block-group has-background" style="border-radius:14px;background-color:#d63d3d;padding-top:22px;padding-right:22px;padding-bottom:22px;padding-left:22px">
-	<!-- wp:image {"width":"36px","height":"36px","sizeSlug":"large"} -->
-	<figure class="wp-block-image size-large is-resized"><img src="https://api.iconify.design/lucide/ICON-NAME.svg?color=%23ffffff&amp;width=36" alt="ICON ALT" style="width:36px;height:36px"/></figure>
-	<!-- /wp:image -->
-</div>
+<!-- wp:group {"style":{"color":{"background":"#d63d3d","text":"#ffffff"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"22px","right":"22px","bottom":"22px","left":"22px"}},"typography":{"fontSize":"36px"}},"layout":{"type":"flex","justifyContent":"center"},"metadata":{"name":"Icon tile"}} -->
+<div class="wp-block-group has-text-color has-background" style="border-radius:14px;color:#ffffff;background-color:#d63d3d;padding-top:22px;padding-right:22px;padding-bottom:22px;padding-left:22px;font-size:36px"><!-- wp:html -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
+<!-- /wp:html --></div>
 <!-- /wp:group -->
 ```
 
-Slots: tile color/radius/padding, iconify icon name (lucide set: `repeat`, `clock-3`, `map-pin`, `building-2`, …), icon color/size, alt. In the markup the `&` in the URL is escaped as `&amp;`. Use this instead of emoji whenever the design shows monochrome icons — an OS emoji is never monochrome.
+Slots: tile background / radius / padding, **text colour (= icon colour)**, **font size (= icon size)**,
+the svg's shapes, `metadata.name`. The shapes come from any line-icon set at authoring time — Iconify
+returns them in this shape (`https://api.iconify.design/<set>/<name>.svg`, e.g. `lucide/truck`). Keep
+`width="1em" height="1em"`, `currentColor`, `aria-hidden="true" focusable="false"`, and no `style` or
+`class` on the svg: (a) errors on a style there and warns on a fixed size or colour. Use this instead of
+emoji whenever the design shows monochrome icons — an OS emoji is never monochrome.
+
+In a ROW next to text the svg's parent also needs a Fixed width of `1em`, or the icon shrinks — see #13.
+
+**A raster or multi-colour icon** (a brand logo) is a `wp:image` of an UPLOADED file instead — never a URL
+on another site:
+
+```html
+<!-- wp:image {"width":"36px","height":"36px","sizeSlug":"large"} -->
+<figure class="wp-block-image size-large is-resized"><img src="UPLOADED-FILE-URL" alt="ICON ALT" style="width:36px;height:36px"/></figure>
+<!-- /wp:image -->
+```
+
+*(Changed 30-09-2026: this snippet was a `wp:image` of `https://api.iconify.design/…svg?color=…` — a
+request to another site on every page view, with the colour baked into the URL, so the merchant could
+change neither the colour nor the size from the editor.)*
 
 ## 6. Custom-color separator + footer line (card footer)
 
@@ -282,6 +304,73 @@ warns about the `blockGap` for exactly this reason; the warning is correct, not 
 ⚠️ **Auto-fit drops a column EARLIER than `wp:columns` stacks** — measured ~856px for a 2-up grid
 versus 782px for `wp:columns`. Choose it deliberately.
 
+## 13. Row list with dividers (trust box, feature or delivery list)
+
+Rows that each draw their own divider, each an icon and a line of text. Every value is a setting: the
+LIST's text colour and font size colour and size every icon at once, each row's bottom border is its
+divider, and the paragraphs carry their own colour and size.
+
+```html
+<!-- wp:group {"className":"cod-brand","style":{"color":{"background":"#f3f1ec","text":"#b4232a"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"4px","bottom":"4px","left":"16px","right":"16px"},"blockGap":"0"},"typography":{"fontSize":"22px","fontFamily":"var(\u002d\u002dcl-font1)"}},"layout":{"type":"default"},"metadata":{"name":"LIST NAME"}} -->
+<div class="wp-block-group cod-brand has-text-color has-background" style="border-radius:14px;color:#b4232a;background-color:#f3f1ec;padding-top:4px;padding-right:16px;padding-bottom:4px;padding-left:16px;font-family:var(--cl-font1);font-size:22px"><!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<div class="wp-block-group"><!-- wp:html -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
+<!-- /wp:html --></div>
+<!-- /wp:group -->
+
+<!-- wp:paragraph {"style":{"color":{"text":"#222222"},"typography":{"fontSize":"14px","lineHeight":"1.45"},"layout":{"selfStretch":"fill","flexSize":null}}} -->
+<p class="has-text-color" style="color:#222222;font-size:14px;line-height:1.45">ROW TEXT</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<div class="wp-block-group"><!-- wp:html -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
+<!-- /wp:html --></div>
+<!-- /wp:group -->
+
+<!-- wp:paragraph {"style":{"color":{"text":"#222222"},"typography":{"fontSize":"14px","lineHeight":"1.45"},"layout":{"selfStretch":"fill","flexSize":null}}} -->
+<p class="has-text-color" style="color:#222222;font-size:14px;line-height:1.45">ROW TEXT</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<div class="wp-block-group"><!-- wp:html -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
+<!-- /wp:html --></div>
+<!-- /wp:group -->
+
+<!-- wp:paragraph {"style":{"color":{"text":"#222222"},"typography":{"fontSize":"14px","lineHeight":"1.45"},"layout":{"selfStretch":"fill","flexSize":null}}} -->
+<p class="has-text-color" style="color:#222222;font-size:14px;line-height:1.45">LAST ROW TEXT</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:group -->
+```
+
+Slots: list name, background, radius, paddings, **text colour (= every icon's colour)**, **font size
+(= every icon's size)**, font family, divider colour, row padding, the icon shapes, the texts and their
+colour and size. The LAST row has no border. As a custom block's whole content the list is the root, so it
+carries `cod-brand`; inside a page section, drop it.
+
+Load-bearing:
+- **`"blockGap":"0"` on the list.** The rows' padding and dividers ARE the spacing. Without it a theme
+  with block-gap support puts its default gap under every divider — measured on one store: 24px under
+  each of three dividers, 72 of a 252px box. With support off, a flow list gives 0 anyway. (a) warns when
+  rows with their own divider sit in a container with no Block spacing.
+- **The Icon group: flex layout and a Fixed width of `1em`** (`selfStretch: "fixedNoShrink"`,
+  `flexSize: "1em"`). A bare svg next to long text shrinks — a 22px icon measured 12.9px wide at desktop
+  and 6.7px at 375px; with the Fixed width, 22×22 at both.
+- **The paragraph fills the row** (`selfStretch: "fill"`) and wraps; the row itself stays `nowrap`.
+- **Render it WITH the page.** All of these are layout settings whose CSS WordPress prints with the page.
+  Loaded after the page (a deferred custom block), the same list measured 24px under every divider, rows
+  wrapping and the icons free to shrink (`SKILL.md` step 2).
+
+Verified 30-09-2026 on a WordPress 7.1 store with block-gap support: 0px from each divider to the next
+row at 1423px and 375px, icons 22×22, and every block valid in the block editor.
+
 ## ⚠️ blockGap renders ONLY if the destination theme opts in — DETECT it, never assume
 
 `blockGap` emits **no CSS of its own**. WordPress turns it into real CSS only when the ACTIVE THEME
@@ -331,6 +420,8 @@ Either of these answers it:
 ⚠️ **Side effect of support being ON, worth knowing before you ask a merchant to enable it:**
 containers that author *no* gap stop falling back to 0/8/32px and inherit WordPress's default instead.
 Turning it on moves spacing on blocks that never asked for a gap.
+A list of rows that draw their own dividers is where this shows most: set the list's `blockGap` on
+purpose — #13.
 
 ### When support is OFF, one cause produces THREE different symptoms
 
