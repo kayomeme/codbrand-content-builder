@@ -602,9 +602,15 @@ function checkDeadLinks(text) {
  * because the markup set blockGap and zeroed the child margins. Both validators passed; a human
  * found it on a screenshot. File-level (not per-occurrence) so the message stays readable.
  */
-function checkBlockGapReliance(text) {
-  const n = (text.match(/"blockGap"/g) ?? []).length;
+function checkBlockGapReliance(text, markers) {
+  let n = (text.match(/"blockGap"/g) ?? []).length;
   if (n === 0) return [];
+  // A divider list's Block spacing belongs to checkDividerRowsGap, whose message carries this same
+  // caveat. Counting it here too told the author to undo what that message had just asked for (reported
+  // from a live store 03-10-2026: set blockGap as asked → "set explicit margins … instead"). Only on
+  // markup that balances (markers given) — otherwise the block tree cannot be trusted.
+  if (markers) n -= dividerListsWithGap(markers);
+  if (n <= 0) return [];
   return [
     `blockGap used ${n}× — it emits NO CSS by itself and is discarded entirely unless the DESTINATION theme opts into spacing.blockGap (EITHER via theme.json OR via add_theme_support('appearance-tools') on a classic theme — so you must DETECT it, not infer it from the theme being classic). Confirm the destination supports it, or set explicit margins on the children instead.`,
   ];
@@ -649,26 +655,45 @@ function drawsOnlyADivider(attrs) {
  * overrides the default gap, so a list whose rows all do is left alone; in flex or grid only the gap
  * itself counts. Cards with a full border want a gap and are not rows here; rows with padding but no
  * divider are too ambiguous to judge from markup and stay in prose (SKILL.md step 3).
+ *
+ * This rule OWNS the spacing advice for such a list: its message names both routes and the detect step,
+ * and checkBlockGapReliance does not count the list's blockGap once it is set, so following this message
+ * never meets a contrary one.
  */
 const DIVIDER_CONTAINERS = new Set(["group", "column"]);
+
+/** The direct children of the container at markers[i] that each draw only a divider. */
+function dividerRows(markers, i) {
+  return directChildren(markers, i).filter((k) => drawsOnlyADivider(k.attrs));
+}
+
+const hasValue = (v) => v !== undefined && v !== null && v !== "";
+
+/** How many divider lists (≥ 2 divider rows) set their own Block spacing — this rule owns their advice. */
+function dividerListsWithGap(markers) {
+  let owned = 0;
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    if (m.kind !== "open" || !DIVIDER_CONTAINERS.has(m.name)) continue;
+    if (!hasValue(m.attrs?.style?.spacing?.blockGap)) continue;
+    if (dividerRows(markers, i).length >= 2) owned++;
+  }
+  return owned;
+}
 
 function checkDividerRowsGap(markers) {
   const issues = [];
   for (let i = 0; i < markers.length; i++) {
     const m = markers[i];
     if (m.kind !== "open" || !DIVIDER_CONTAINERS.has(m.name)) continue;
-    const gap = m.attrs?.style?.spacing?.blockGap;
-    if (gap !== undefined && gap !== null && gap !== "") continue;
-    const rows = directChildren(markers, i).filter((k) => drawsOnlyADivider(k.attrs));
+    if (hasValue(m.attrs?.style?.spacing?.blockGap)) continue;
+    const rows = dividerRows(markers, i);
     if (rows.length < 2) continue;
     const type = m.attrs?.layout?.type ?? "default";
     const flow = type === "default" || type === "constrained";
-    const ownMargins = rows.every((k) => {
-      const top = k.attrs?.style?.spacing?.margin?.top;
-      return top !== undefined && top !== null && top !== "";
-    });
+    const ownMargins = rows.every((k) => hasValue(k.attrs?.style?.spacing?.margin?.top));
     if (flow && ownMargins) continue;
-    issues.push(`wp:${m.name} at offset ${m.position}: ${rows.length} of its rows draw their own divider (a top or bottom border only), but the ${m.name} sets no Block spacing (style.spacing.blockGap). On a destination with block-gap support WordPress puts its default gap between every divider and the next row — measured on one storefront: 24px under each of three dividers, 72 of a 252px box. Set the ${m.name}'s blockGap on purpose — "0" when the rows' own padding and dividers are the spacing (snippets.md #13).`);
+    issues.push(`wp:${m.name} at offset ${m.position}: ${rows.length} of its rows draw their own divider (a top or bottom border only), but the ${m.name} sets no Block spacing (style.spacing.blockGap). On a destination with block-gap support WordPress puts its default gap between every divider and the next row — measured on one storefront: 24px under each of three dividers, 72 of a 252px box. Choose its spacing on purpose, after detecting the destination (snippets.md → "blockGap renders ONLY if the destination theme opts in"). With block-gap support: set the ${m.name}'s blockGap — "0" when the rows' own padding and dividers are the spacing. Without it: blockGap is discarded; a flow ${m.name} then gives 0, and any other gap is a top margin on each row (a flex or grid ${m.name} falls back to 0.5em). Recipe: snippets.md #13.`);
   }
   return issues;
 }
@@ -1034,7 +1059,7 @@ export function validateMarkup(markup) {
   for (const issue of checkStyleScriptElements(markup)) errors.push(issue);
   for (const issue of checkDeadLinks(markup)) errors.push(issue);
   for (const issue of checkEmojiPlaceholders(markup)) warnings.push(issue);
-  for (const issue of checkBlockGapReliance(markup)) warnings.push(issue);
+  for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null)) warnings.push(issue);
   for (const issue of checkTypefaceSet(markup)) warnings.push(issue);
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
   for (const issue of checkPresetTokens(markup)) warnings.push(issue);

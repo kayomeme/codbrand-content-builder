@@ -443,7 +443,9 @@ computed_gap:            "normal"
 
 — literally 0px between a heading and its content, across several sections. Both validators passed;
 it was found on a screenshot. `validate_pattern.mjs` warns whenever `blockGap` appears, because
-it cannot know the destination — the warning means "confirm this", not "remove it".
+it cannot know the destination — the warning means "confirm this", not "remove it". The one exception is
+a list whose rows draw their own dividers (#13): its own warning carries this caveat before the gap is
+set, so the list's `blockGap` is not counted again once it is.
 
 **The OFF remedy — explicit margins, which DO emit inline CSS:**
 
