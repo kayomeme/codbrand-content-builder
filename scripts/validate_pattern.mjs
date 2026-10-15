@@ -27,10 +27,14 @@
  *     currentColor (warnings)
  *   - no <style> and no <script> element anywhere in the content
  *   - rows that draw their own divider sit in a container whose Block spacing is set on purpose (warning)
+ *   - every attribute has the type the destination declares, given its block types (--block-types); without
+ *     them, a quoted number in a cl/ attribute named …Id or …PerPage (warning)
  *
  * TWO MODES:
  *   node validate_pattern.mjs path/to/markup.html   validate ONE file — what an agent just made
  *   node validate_pattern.mjs                       validate the teaching corpus in ../examples/
+ *   … --block-types=<store-types.json>              also check every attribute's type against the store's own
+ *                                                   block registry (SKILL.md → "Embedding a plugin (cl/…) block")
  *
  * The corpus mode exists to keep the examples honest: they are what the next agent learns from, so
  * an example that would not itself pass the gate teaches a defect. It is NOT a publish step —
@@ -1025,12 +1029,89 @@ function decodeHtmlAttr(value) {
 }
 
 /**
+ * A block attribute written with the wrong type — most often a number written as a string, `"categoryId":"3"`.
+ *
+ * The two sides of WordPress disagree, which is why it survives: the server renders "3" (a number attribute only has
+ * to pass is_numeric()), while the editor's parser keeps a value only when `typeof value === "number"` and otherwise
+ * falls back to the declared default — so the next save writes the block WITHOUT it. Measured on one store
+ * (13-10-2026): a category listing rendered right for two weeks, then showed every category's products once the page
+ * had been re-saved. Nothing else sees it: WordPress's own check (c) does not count a wrong type as an invalid block,
+ * and a dynamic (cl/…) block saves no HTML for the local ground truth to compare.
+ *
+ * The declared types belong to the destination, so they come in from it: `--block-types=<file>` is the store's own
+ * registry, read on its check page (SKILL.md → "Embedding a plugin (cl/…) block", rule 2). With it, every block — core
+ * and plugin — is checked, as an ERROR. Without it, a WARNING on the one shape that is never right: a quoted number in a
+ * cl/ attribute named …Id or …PerPage (all 11 of the plugin's number attributes end that way and none of its string
+ * attributes do — read in the six block.json files, 15-10-2026), plus a note that the types were not checked.
+ */
+// WordPress's own rule (@wordpress/blocks isOfType). A type a comment value cannot be judged by (rich-text, …) is
+// left alone.
+const JSON_TYPE_TESTS = {
+  string: (v) => typeof v === "string",
+  number: (v) => typeof v === "number",
+  integer: (v) => typeof v === "number",
+  boolean: (v) => typeof v === "boolean",
+  array: (v) => Array.isArray(v),
+  object: (v) => !!v && typeof v === "object" && !Array.isArray(v),
+  null: (v) => v === null,
+};
+const fullBlockName = (name) => (name.includes("/") ? name : `core/${name}`);
+const actualType = (v) => (Array.isArray(v) ? "array" : v === null ? "null" : typeof v);
+const QUOTED_NUMBER = /^\s*-?\d+(\.\d+)?\s*$/;
+
+function checkAttributeTypes(markers, blockTypes) {
+  const issues = [];
+  for (const m of markers) {
+    if (m.kind === "close" || !m.attrs) continue;
+    const declared = blockTypes[fullBlockName(m.name)];
+    if (!declared || typeof declared !== "object") continue;
+    for (const [key, value] of Object.entries(m.attrs)) {
+      const spec = declared[key];
+      if (spec === undefined || spec === null) continue;                 // undeclared — not this check's job
+      const isSpecObject = typeof spec === "object" && !Array.isArray(spec);
+      if (isSpecObject && spec.source) continue;                         // WordPress reads it from the HTML, not the comment
+      const want = isSpecObject ? spec.type : spec;
+      const types = (Array.isArray(want) ? want : [want]).filter(Boolean);
+      if (!types.length || types.some((t) => !JSON_TYPE_TESTS[t])) continue;
+      if (types.some((t) => JSON_TYPE_TESTS[t](value))) continue;
+      const numeric = types.some((t) => t === "number" || t === "integer");
+      const fix = numeric && typeof value === "string" && QUOTED_NUMBER.test(value) ? ` Write "${key}":${Number(value)}.` : "";
+      issues.push(`wp:${m.name} at offset ${m.position}: "${key}" is a ${actualType(value)} (${JSON.stringify(value)}) but this store's block declares ${types.join(" or ")}. The server may still render it, but the editor drops a wrongly typed attribute and the next save writes the block without it, at its default.${fix}`);
+    }
+  }
+  return issues;
+}
+
+const NUMERIC_NAME = /(Id|PerPage)$/;
+
+function checkQuotedNumbersInPluginBlocks(markers) {
+  const issues = [];
+  for (const m of markers) {
+    if (m.kind === "close" || !m.attrs || !m.name.startsWith("cl/")) continue;
+    for (const [key, value] of Object.entries(m.attrs)) {
+      if (!NUMERIC_NAME.test(key) || typeof value !== "string" || !/^\s*-?\d+\s*$/.test(value)) continue;
+      issues.push(`wp:${m.name} at offset ${m.position}: "${key}":"${value}" is a number written as a string — every cl/ attribute named …Id or …PerPage is declared a number. The server still renders it, but the editor drops it on the next save and the block falls back to its default. Write "${key}":${Number(value)}.`);
+    }
+  }
+  return issues;
+}
+
+function pluginBlocksUnchecked(markers) {
+  const names = [...new Set(markers.filter((m) => m.kind !== "close" && m.name.startsWith("cl/")).map((m) => m.name))];
+  if (!names.length) return [];
+  return [`${names.join(", ")}: attribute types not checked against this store — read its block types on the check page and pass them with --block-types=<file> (SKILL.md → "Embedding a plugin (cl/…) block", rule 2). WordPress's own checks do not flag a wrongly typed attribute.`];
+}
+
+/**
  * THE VALIDATOR. Takes MARKUP, not a path — so an agent can check what it just generated without
  * writing a file first, which is the whole point of the corpus/output split: what the agent produces
  * is its own business, and this skill only has to be able to tell it whether the markup is sound.
  * Everything below this function is file plumbing over the top of it.
+ *
+ * options.blockTypes — the destination's declared attribute types ({ "<block>": { "<attr>": type | {type, source} } }),
+ * as the store's check page returns them. Optional; see checkAttributeTypes.
  */
-export function validateMarkup(markup) {
+export function validateMarkup(markup, options = {}) {
   const errors = [];
   const warnings = [];
 
@@ -1069,12 +1150,18 @@ export function validateMarkup(markup) {
   for (const issue of esc.warns) warnings.push(issue);
   for (const issue of hpad.errs) errors.push(issue);
   for (const issue of hpad.warns) warnings.push(issue);
+  if (options.blockTypes) {
+    for (const issue of checkAttributeTypes(markers, options.blockTypes)) errors.push(issue);
+  } else {
+    for (const issue of checkQuotedNumbersInPluginBlocks(markers)) warnings.push(issue);
+    for (const issue of pluginBlocksUnchecked(markers)) warnings.push(issue);
+  }
 
   return { errors, warnings };
 }
 
 /** One example folder: <category>/<name>/content.html */
-function validateExample(folderPath) {
+function validateExample(folderPath, options = {}) {
   const name = path.basename(folderPath);
   const category = path.basename(path.dirname(folderPath));
   const rel = `${category}/${name}`;
@@ -1091,7 +1178,7 @@ function validateExample(folderPath) {
     return { path: rel, category, name, status: "error", errors, warnings };
   }
 
-  const r = validateMarkup(readFileSafe(file) ?? "");
+  const r = validateMarkup(readFileSafe(file) ?? "", options);
   errors.push(...r.errors);
   warnings.push(...r.warnings);
 
@@ -1133,14 +1220,46 @@ async function designFindings(markup) {
   }
 }
 
+/**
+ * `[markup file or examples dir] [--block-types=<file> | --block-types <file>]`. The value of --block-types is never
+ * taken for the markup file.
+ */
+function parseArgs(argv) {
+  let target = null;
+  let typesFile = null;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--block-types") { typesFile = argv[++i] ?? ""; continue; }
+    if (a.startsWith("--block-types=")) { typesFile = a.slice("--block-types=".length); continue; }
+    if (a.startsWith("--")) continue;
+    if (target === null) target = a;
+  }
+  return { target, typesFile };
+}
+
+/** The store's declared types, from the file --block-types names. An unusable file is an error, never a silent skip. */
+function loadBlockTypes(file) {
+  if (file === null) return { blockTypes: null };
+  try {
+    const json = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), file), "utf8"));
+    if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("expected an object keyed by block name");
+    return { blockTypes: json };
+  } catch (e) {
+    return { error: `--block-types: cannot use "${file}" (${e.message}). Pass the JSON the store's check page returns (SKILL.md → "Embedding a plugin (cl/…) block", rule 2).` };
+  }
+}
+
 async function main() {
-  const arg = process.argv.slice(2).find((a) => !a.startsWith("--"));
+  const { target: arg, typesFile } = parseArgs(process.argv.slice(2));
+  const types = loadBlockTypes(typesFile);
+  const options = { blockTypes: types.blockTypes };
 
   // SINGLE-FILE MODE — validate one markup file (what an agent just generated).
   if (arg && existsFile(path.resolve(process.cwd(), arg))) {
     const file = path.resolve(process.cwd(), arg);
     const markup = readFileSafe(file) ?? "";
-    const r = validateMarkup(markup);
+    const r = validateMarkup(markup, options);
+    if (types.error) r.errors.unshift(types.error);
     const design = await designFindings(markup);
     process.stdout.write(JSON.stringify({
       tool: { name: "validate_pattern", version: "1.0.0" },
@@ -1165,7 +1284,11 @@ async function main() {
     process.exit(1);
   }
 
-  const results = walkExamples(root).map(validateExample);
+  if (types.error) {
+    process.stdout.write(JSON.stringify({ tool: { name: "validate_pattern", version: "1.0.0" }, error: types.error }, null, 2) + "\n");
+    process.exit(1);
+  }
+  const results = walkExamples(root).map((p) => validateExample(p, options));
   for (const r of results) {
     const f = path.join(root, r.path.split("/").join(path.sep), CONTENT_FILE);
     r.designAdvisory = await designFindings(readFileSafe(f) ?? "");
