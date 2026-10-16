@@ -179,13 +179,13 @@ Slots: image URL (twice — JSON and `src` must match), alt (twice too — `"alt
 
 ```html
 <!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"url":"#","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="#" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">BUTTON TEXT</a></div>
+<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">BUTTON TEXT</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons -->
 ```
 
-Slots: colors, radius, paddings, typography values, text, href (`"url"` in JSON MUST match — both mandatory, `#` for placeholders). Style lands on the `<a>`, never the wrapper `<div>`. WordPress writes the properties in this order: `border-radius` → `color` → `background-color` → paddings → `font-size` → `font-weight` → `letter-spacing` → `text-transform` — copy it for tidy diffs; validation ignores property order (corrected 15-09-2026, see the top of `block-supports.md`).
+Slots: colors, radius, paddings, typography values, text, and the destination — `"url"` in the JSON and `href` on the `<a>`, both mandatory and identical: a page, a product, or an `#anchor` that exists on the page (`/shop` is only the example's). There is no placeholder: a bare `#` goes nowhere, and (a) fails it as a dead link; a label with nowhere to go is not a button (`block-supports.md` → `core/button`). *(Until 16-10-2026 this snippet carried `"url":"#"` and said "`#` for placeholders", so it failed (a) as written.)* Style lands on the `<a>`, never the wrapper `<div>`. WordPress writes the properties in this order: `border-radius` → `color` → `background-color` → paddings → `font-size` → `font-weight` → `letter-spacing` → `text-transform` — copy it for tidy diffs; validation ignores property order (corrected 15-09-2026, see the top of `block-supports.md`).
 
 ⚠️ **Full width is `"dimensions":{"width":"100%"}` inside `style`, on a plain `<div class="wp-block-button">` wrapper** — corrected 15-09-2026. This snippet used a numeric `"width":100` with `has-custom-width wp-block-button__width-100` on the wrapper, which is how an older `core/button` saved. WordPress accepts that only as an older version of the block and rewrites it the next time the page is saved. The button still stretches: WordPress adds the width classes itself when it renders the page (`wp-includes/blocks/button.php`). Other widths are written the same way, e.g. `"50%"`. `validate_pattern.mjs` flags the numeric form too.
 
@@ -414,7 +414,7 @@ Either of these answers it:
 
 | detection | what to do |
 |---|---|
-| **support ON** | `blockGap` is the right tool. **Do not also set explicit child margins — they DOUBLE-SPACE.** |
+| **support ON** | `blockGap` is the right tool. **Do not also set explicit child margins — they DOUBLE-SPACE.** Run `validate_pattern.mjs` with `--block-gap=supported`. |
 | **support OFF** | space the children with explicit `margin`, which always emits inline CSS (below). |
 
 ⚠️ **Side effect of support being ON, worth knowing before you ask a merchant to enable it:**
@@ -445,7 +445,9 @@ computed_gap:            "normal"
 it was found on a screenshot. `validate_pattern.mjs` warns whenever `blockGap` appears, because
 it cannot know the destination — the warning means "confirm this", not "remove it". The one exception is
 a list whose rows draw their own dividers (#13): its own warning carries this caveat before the gap is
-set, so the list's `blockGap` is not counted again once it is.
+set, so the list's `blockGap` is not counted again once it is. Once you have detected support, pass
+`--block-gap=supported`: the warning has nothing left to ask, so it is not given (added 16-10-2026 — it fired
+on every file built for a theme that renders the gap).
 
 **The OFF remedy — explicit margins, which DO emit inline CSS:**
 

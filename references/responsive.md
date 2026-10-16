@@ -32,7 +32,9 @@ Use `wp:columns` with three `wp:column` children. Auto-stacks. No extra config.
 With `flexWrap:"nowrap"` if absolutely needed.
 
 ### Hero with image and text, image on left desktop / above on mobile
-Use `wp:media-text`. `mediaPosition:"left"` or `"right"`. Stacks above 600px breakpoint automatically.
+Use `wp:media-text`. `mediaPosition:"left"` or `"right"`. Below 600px it stacks, image above the text, while
+`isStackedOnMobile` is on — the default. Its text keeps an 8% inset on each side even when stacked
+(`block-supports.md` → `core/media-text`). *(Corrected 16-10-2026: this line said it stacks "above" 600px.)*
 
 ### `clamp()` for a spacing step — the ONLY way to express a media query in block supports
 
@@ -162,6 +164,46 @@ width" on this platform must account for the gutters — neither form of this re
 AND at 375px, and only proceed if the mobile value is genuinely the larger one.** If it is not, the
 range is empty and no constant exists — go back to grid.
 
+## Phones only, or not on phones — WordPress's per-device visibility
+
+A block setting since WordPress 7.0, kept in the block's own comment JSON: `false` hides the block on that
+size. This is the canonical pair — one section for tablets and computers, one for phones:
+
+```html
+<!-- wp:group {"metadata":{"name":"Hero — tablets and computers","blockVisibility":{"viewport":{"mobile":false}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group"><!-- wp:paragraph -->
+<p>Shown on tablets and computers.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"metadata":{"name":"Hero — phones","blockVisibility":{"viewport":{"tablet":false,"desktop":false}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group"><!-- wp:paragraph -->
+<p>Shown on phones only.</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+```
+
+- **It is the merchant's own control.** In the block editor: the block's toolbar → **Hide block** → one
+  "Hide on …" box per size; the editor writes exactly this JSON, and only for the boxes ticked. "Omit from
+  published content" writes `"blockVisibility":false` instead — the block is not published at all, so never
+  use it for a device choice. Write nothing else: WordPress adds the `wp-block-hidden-mobile` (`-tablet`,
+  `-desktop`) class and its CSS itself when it renders the page.
+- **The sizes are WordPress's**, not the store's phone width: phone up to 480px, tablet up to 782px, computer
+  above — unless the theme sets its own (`settings.viewport` in its `theme.json`). A phone held sideways is
+  wider than 480px, often wider than 782px, so it gets the tablet's or even the computer's choice.
+- **It is CSS.** A hidden block is still in the page, and its images still download. Two heavy heroes, one per
+  size, cost both on every device: prefer one block that adapts (stacking, `clamp()`) and keep this for what
+  really differs.
+- **Not every block has it.** On WordPress 7.1.3 `wp:html` and `wp:shortcode` (among others) opt out, so the
+  value does nothing there — put the block in a group and set it on the group. The `cl/…` blocks do not opt out.
+- **It is not the store's phone layout.** What a store renders for a phone on the server, from the user agent
+  (below), is a separate mechanism.
+
+Measured on one store (WordPress 7.1, the codbrand theme, 16-10-2026), the two settings on paragraphs:
+`{"mobile":false}` hidden at 375px and shown at 600 and 1423px; `{"tablet":false,"desktop":false}` the
+reverse. The 375/600px figures come from a same-origin frame, which is a fair test here because the setting
+is pure CSS.
+
 ## Verifying at a narrow viewport (MANDATORY for width/padding/margin/contentSize changes)
 
 **Both validators are static and browser-free.** They cannot see a layout that only breaks below a
@@ -178,6 +220,22 @@ words mid-word.
    mid-word" is a finding; "looks a bit tight on mobile" is not, and cannot be acted on.
 3. Check the elements the change actually touched — computed width, the horizontal padding sum, and
    whether any text is breaking inside words.
+4. **Say which way you looked** — the ways below do not show the same page.
+
+**How to look at 375px, and what each way can show:**
+
+| Way | Changes | The store's phone-only output? |
+|---|---|---|
+| a narrow browser window, or the page in a 375px-wide frame on the store's own origin (measured through the frame's `contentDocument`) | the CSS width only: media queries, stacking, wrapping | **no** — the server still sees a computer |
+| a browser's device mode, or a headless browser, with a **phone user agent** | the width AND what the server sends | **yes** |
+| the store's own phone preview, where its docs offer one | what that preview covers | only there |
+
+Some of what a store renders for a phone is chosen **on the server, from the user agent** (WordPress's
+`wp_is_mobile()`), not by a media query. A frame never shows it, so a page can look right at 375px in a
+frame and still differ on a real phone. Measured on one store (29-09-2026): a products listing's phone
+filter and the header's phone menu never appeared in a 375px frame. Two more traps: a page cache that
+keeps one copy for every device can serve the computer copy to a phone (the store's docs say how it
+caches), and a tablet can get either output, depending on what its browser says it is.
 
 **⚠️ Guard every measurement with a width assertion first.** If the browser reports
 `window.innerWidth === 0` the pane is collapsed or hidden, and **every number derived from it is

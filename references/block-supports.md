@@ -186,7 +186,7 @@ So if you want a dimmer overlay, change `dimRatio` to something other than 50 (e
 - Per-button: `"text":"Click me"`, `"url":"..."`, `"linkTarget":"_blank"`, `"className":"is-style-outline"`.
 - Width: `"style":{"dimensions":{"width":"50%"}}`, on a plain `<div class="wp-block-button">` wrapper — WordPress adds the width classes when it renders the page. Not the older numeric `"width":50`: WordPress accepts that only as an older version and rewrites it on the next save (corrected 15-09-2026; canonical markup in `snippets.md` §8).
 
-**🔴 MANDATORY: every `wp:button` MUST have `"url"` in JSON AND `href` on the `<a>`.** No exceptions, even for decorative pill-style "badges" or labels. WP's button save() always renders an `<a href>`, so a button without these triggers the "Block contains unexpected or invalid content" parser error on every paste. If the button is purely decorative, use `"url":"#"` and `href="#"`. If you want a static label without click behavior, **don't use `wp:button`** — use a styled `wp:group` containing a `wp:paragraph` instead.
+**🔴 MANDATORY: every `wp:button` MUST have `"url"` in JSON AND `href` on the `<a>`.** No exceptions. WP's button save() always renders an `<a href>`, so a button without these triggers the "Block contains unexpected or invalid content" parser error on every paste. The destination is a real one — a page, a product, or an `#anchor` that exists on the page — never a bare `#`, which goes nowhere and fails (a) as a dead link. A pill-style "badge" or a static label without click behavior is **not a `wp:button`** — use a styled `wp:group` containing a `wp:paragraph` instead. *(Corrected 16-10-2026: this line advised `"url":"#"` for a decorative button, which (a) then failed.)*
 
 > ⚠️ **High-risk block.** `wp:button` with 3+ style sub-keys (color + border + typography + spacing) is the most parser-fragile block we've seen. Many things must align exactly: which classes are present (`has-text-color` / `has-background` / `has-custom-font-size`), which element carries each style, and every value with its unit (only a zero is lenient — `0` and `0px` compare equal). Class order and style-property order are not among them (corrected 15-09-2026). **For heavily-styled buttons, prefer Strategy B in `SKILL.md` (capture from WP's Code Editor view) instead of hand-writing the JSON↔HTML pair.** It saves multiple iteration rounds.
 
@@ -197,8 +197,8 @@ So if you want a dimmer overlay, change `dimRatio` to something other than 50 (e
 Correct full markup for a 100%-width dark button with custom typography:
 ```html
 <!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"url":"#","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="#" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">Purchase Now</a></div>
+<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">Purchase Now</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons -->
 ```
@@ -252,13 +252,22 @@ comment JSON : "fontFamily":"var(\u002d\u002dcl-fontN)"      <- escaped
 inline style : font-family:var(--cl-fontN)                   <- plain
 ```
 
-⚠️ **NEITHER VALIDATOR CATCHES A MISSED ESCAPE.** Plain `--` in the JSON still parses, so ground
-truth passes and the page renders correctly today. It diverges only when the editor next re-saves the
-post — long after delivery, with no error anywhere. A page using CSS custom properties hits this on
-**every occurrence**; real conversions have needed 22-27 in a single page.
+⚠️ **NEITHER WORDPRESS-BASED CHECK CATCHES A MISSED ESCAPE** — not the store's check page, not the local
+ground-truth validator. Plain `--` in the JSON still parses, so both pass and the page renders correctly
+today. It diverges only when the editor next re-saves the post — long after delivery, with no error
+anywhere. A page using CSS custom properties hits this on **every occurrence**; real conversions have
+needed 22-27 in a single page.
 
-`validate_pattern.mjs` checks this mechanically (`checkCommentJsonEscaping`) precisely because nobody
-catches 27 of them by eye.
+`validate_pattern.mjs` (step 5 (a)) checks this mechanically (`checkCommentJsonEscaping`) precisely because
+nobody catches 27 of them by eye — on one build it caught 31. It fails an unescaped `--` and warns on `&`,
+`<`, `>`. *(Corrected 16-10-2026: this said "neither validator".)*
+
+⚠️ **Your own file-writing tool can undo the escapes.** An agent's tool may decode `\u002d` back to `-`
+while it writes the file, so the escapes you wrote never reach the disk. Reproduced 16-10-2026: text
+written with the escaped form held a plain `--` on disk, and nothing said so. So **generate escaped JSON
+in code** — a script that builds the backslash itself (`String.fromCharCode(92) + "u002d"`) or serializes
+the attributes for you — never by typing the escape into a tool's argument; and **re-run (a) after every
+write**, because it is what notices.
 
 **Write a SHAPE, never a real id.** `var(\u002d\u002dcl-fontN)` — a specific slot number is one
 store's choice, and this file ships to stores we have never seen.
@@ -331,6 +340,12 @@ Note: when custom color is set, the inline `style` includes BOTH `background-col
 
 ### `core/media-text`
 - `{"mediaPosition":"left"|"right","mediaWidth":50,"verticalAlignment":"center"}` for image+text side-by-side.
+- **Below 600px it stacks** (image first) while `isStackedOnMobile` is on, the default — and **its text keeps
+  an 8% inset on each side**, stacked or not: core's own `padding: 0 8%` on `.wp-block-media-text__content`
+  (`@wordpress/block-library` 10.1.0 `media-text/style.css`). No block setting changes that inset; the
+  block's Padding setting adds space around the whole block instead. Measured on one storefront at 375px
+  (29-09-2026): 29px each side. When a phone layout wants the text closer to the edge, build the pair from
+  `wp:columns` (it stacks below 782px) or from groups whose padding you set yourself.
 
 ### `core/quote` and `core/pullquote`
 - `{"citation":"Person, Role"}` not always needed; use inner `<cite>` for richer formatting.

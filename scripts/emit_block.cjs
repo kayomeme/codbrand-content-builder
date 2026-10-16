@@ -35,7 +35,15 @@ if (!argv.length || argv.includes("--help") || argv.includes("-h")) {
   process.exit(0);
 }
 if (!fs.existsSync(path.join(__dirname, "node_modules", "@wordpress", "blocks"))) {
-  console.error("Dependencies missing. Run: cd .claude/skills/codbrand-content-builder/scripts && npm install");
+  console.error(
+    "Dependencies are not installed. This tool needs the optional toolbox the local\n" +
+    "ground-truth validator uses (~400 packages) -- installing it is the user's call.\n\n" +
+    "If you do want it, copy this file + package.json + package-lock.json into a\n" +
+    "directory of your own (beside validate_pattern_wp.cjs if you already have one) and\n" +
+    "run `npm ci` there. Do NOT install in the skill folder: if it is a link into a git\n" +
+    "repository, this puts 1.6 GB / ~138,000 files inside that repository.\n" +
+    "See references/headless-validation.md."
+  );
   process.exit(1);
 }
 

@@ -68,9 +68,15 @@ published the site's own revision history is the durable copy.
 - **`products`** — the plugin renders its own product UI (gallery, price, quantity offers,
   add-to-cart) and your content is appended **BELOW** it. Do not write a second hero, a second price,
   or your own order button; use the plugin's real one.
-- **`custom_blocks`** — a reusable fragment the merchant places from the plugin's admin. Authored and
-  checked exactly like a page, and placed to render WITH the page — a block loaded after the page loses
-  the CSS behind its layout settings (`SKILL.md` step 2).
+- **`custom_blocks`** — a reusable fragment, shown wherever it is placed: on a COD Leads storefront through
+  its placements door (`/cl-api/v1/docs/custom_block_placements` — writing the block shows it nowhere).
+  Authored and checked exactly like a page, and placed to render WITH the page — a block loaded after the
+  page loses the CSS behind its layout settings (`SKILL.md` step 2). **The host may draw around it:** a
+  placement can wear a frame, or a collapsible header and body, from the store's design, while other routes
+  show the block bare — the doc says which. So decide who draws the box before you write it: no card of the
+  content's own where the host frames it, or a placement whose look you choose to fit a content that draws
+  its own — never both, which shows as a box inside a box. *(Corrected 16-10-2026: this said the merchant
+  places it "from the plugin's admin".)*
 
 On any other destination, establish the equivalent before authoring. If you cannot, assume your
 content owns the whole page and has to say everything itself.

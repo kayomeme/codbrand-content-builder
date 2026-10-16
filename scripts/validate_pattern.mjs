@@ -35,6 +35,8 @@
  *   node validate_pattern.mjs                       validate the teaching corpus in ../examples/
  *   … --block-types=<store-types.json>              also check every attribute's type against the store's own
  *                                                   block registry (SKILL.md → "Embedding a plugin (cl/…) block")
+ *   … --block-gap=supported                         once you have DETECTED that the destination renders blockGap
+ *                                                   (references/snippets.md → "Detect it"): no "confirm it" warning
  *
  * The corpus mode exists to keep the examples honest: they are what the next agent learns from, so
  * an example that would not itself pass the gate teaches a defect. It is NOT a publish step —
@@ -176,7 +178,7 @@ function checkBlockSerialization(text, markers) {
     if (open.name === "button") {
       const attrs = open.attrs ?? {};
       if (!attrs.url) {
-        issues.push(`wp:button at offset ${open.position}: missing "url" in JSON (mandatory — use "#" for decorative)`);
+        issues.push(`wp:button at offset ${open.position}: missing "url" in JSON (mandatory — the button's real destination: a page, a product, or an "#anchor" on this page. A label that goes nowhere is not a button: draw it as a group with a paragraph)`);
       }
       if (!/\shref=/.test(segment)) {
         issues.push(`wp:button at offset ${open.position}: rendered <a> has no href attribute`);
@@ -310,9 +312,10 @@ function checkCodBrand(text, markers) {
  * editor round-trips actually lives; a rendered-href regex also matched escaped/templated forms and
  * missed real cases.
  *
- * A BARE `href="#"` is deliberately ignored — it is the documented placeholder for a decorative
- * button (snippets.md #8 requires `url` on every button, and `#` is what you use when there is
- * nowhere to go). Only a NAMED fragment with no target is an error.
+ * A BARE `"url":"#"` is not this check's business: it goes nowhere, and checkDeadLinks reports it as a
+ * dead link. (Until 16-10-2026 this comment, two messages and the button snippet offered a bare "#" for
+ * a decorative button while checkDeadLinks failed it — reported from a live build.) Only a NAMED
+ * fragment with no target is reported here.
  *
  * Found a real one: both CTAs of banner/hachoir-landing pointed at `#commander` while the library
  * contained no `id=` and no `"anchor"` at all — two dead buttons that passed both validators.
@@ -345,7 +348,7 @@ function checkFragmentTargets(text, markers) {
   for (const [frag, count] of wanted) {
     if (!targets.has(frag)) {
       issues.push(
-        `dead fragment link: "#${frag}" (${count}×) has no target in this pattern — nothing carries id="${frag}" and no block sets "anchor":"${frag}". Point it at a real destination, add the anchor, or use a bare "#" if it is decorative.`
+        `dead fragment link: "#${frag}" (${count}×) has no target in this pattern — nothing carries id="${frag}" and no block sets "anchor":"${frag}". Point it at a real destination, or add the anchor.`
       );
     }
   }
@@ -605,8 +608,13 @@ function checkDeadLinks(text) {
  * A real page authored against such a theme shipped with 0px between headings and their content,
  * because the markup set blockGap and zeroed the child margins. Both validators passed; a human
  * found it on a screenshot. File-level (not per-occurrence) so the message stays readable.
+ *
+ * Once the author HAS detected support (--block-gap=supported), the warning has nothing left to ask, so
+ * it is not given: it fired on every file built for a theme that renders blockGap (reported from a live
+ * build, 29-09-2026).
  */
-function checkBlockGapReliance(text, markers) {
+function checkBlockGapReliance(text, markers, supported = false) {
+  if (supported) return [];
   let n = (text.match(/"blockGap"/g) ?? []).length;
   if (n === 0) return [];
   // A divider list's Block spacing belongs to checkDividerRowsGap, whose message carries this same
@@ -1110,6 +1118,8 @@ function pluginBlocksUnchecked(markers) {
  *
  * options.blockTypes — the destination's declared attribute types ({ "<block>": { "<attr>": type | {type, source} } }),
  * as the store's check page returns them. Optional; see checkAttributeTypes.
+ * options.blockGapSupported — true once the author has detected that the destination renders blockGap; see
+ * checkBlockGapReliance.
  */
 export function validateMarkup(markup, options = {}) {
   const errors = [];
@@ -1140,7 +1150,7 @@ export function validateMarkup(markup, options = {}) {
   for (const issue of checkStyleScriptElements(markup)) errors.push(issue);
   for (const issue of checkDeadLinks(markup)) errors.push(issue);
   for (const issue of checkEmojiPlaceholders(markup)) warnings.push(issue);
-  for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null)) warnings.push(issue);
+  for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null, options.blockGapSupported === true)) warnings.push(issue);
   for (const issue of checkTypefaceSet(markup)) warnings.push(issue);
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
   for (const issue of checkPresetTokens(markup)) warnings.push(issue);
@@ -1221,20 +1231,30 @@ async function designFindings(markup) {
 }
 
 /**
- * `[markup file or examples dir] [--block-types=<file> | --block-types <file>]`. The value of --block-types is never
- * taken for the markup file.
+ * `[markup file or examples dir] [--block-types=<file> | --block-types <file>] [--block-gap=supported]`. The value of
+ * --block-types or --block-gap is never taken for the markup file.
  */
 function parseArgs(argv) {
   let target = null;
   let typesFile = null;
+  let blockGap = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--block-types") { typesFile = argv[++i] ?? ""; continue; }
     if (a.startsWith("--block-types=")) { typesFile = a.slice("--block-types=".length); continue; }
+    if (a === "--block-gap") { blockGap = argv[++i] ?? ""; continue; }
+    if (a.startsWith("--block-gap=")) { blockGap = a.slice("--block-gap=".length); continue; }
     if (a.startsWith("--")) continue;
     if (target === null) target = a;
   }
-  return { target, typesFile };
+  return { target, typesFile, blockGap };
+}
+
+/** --block-gap takes one value, `supported`, given once support is detected. Any other value is an error, never a silent skip. */
+function readBlockGap(value) {
+  if (value === null) return { blockGapSupported: false };
+  if (value === "supported") return { blockGapSupported: true };
+  return { error: `--block-gap: "${value}" is not a value this validator knows. Pass --block-gap=supported once you have detected that the destination renders blockGap (references/snippets.md → "Detect it BEFORE you choose a spacing strategy"); until then leave it out.` };
 }
 
 /** The store's declared types, from the file --block-types names. An unusable file is an error, never a silent skip. */
@@ -1250,16 +1270,18 @@ function loadBlockTypes(file) {
 }
 
 async function main() {
-  const { target: arg, typesFile } = parseArgs(process.argv.slice(2));
+  const { target: arg, typesFile, blockGap } = parseArgs(process.argv.slice(2));
   const types = loadBlockTypes(typesFile);
-  const options = { blockTypes: types.blockTypes };
+  const gap = readBlockGap(blockGap);
+  const optionErrors = [types.error, gap.error].filter(Boolean);
+  const options = { blockTypes: types.blockTypes, blockGapSupported: gap.blockGapSupported };
 
   // SINGLE-FILE MODE — validate one markup file (what an agent just generated).
   if (arg && existsFile(path.resolve(process.cwd(), arg))) {
     const file = path.resolve(process.cwd(), arg);
     const markup = readFileSafe(file) ?? "";
     const r = validateMarkup(markup, options);
-    if (types.error) r.errors.unshift(types.error);
+    r.errors.unshift(...optionErrors);
     const design = await designFindings(markup);
     process.stdout.write(JSON.stringify({
       tool: { name: "validate_pattern", version: "1.0.0" },
@@ -1284,8 +1306,8 @@ async function main() {
     process.exit(1);
   }
 
-  if (types.error) {
-    process.stdout.write(JSON.stringify({ tool: { name: "validate_pattern", version: "1.0.0" }, error: types.error }, null, 2) + "\n");
+  if (optionErrors.length) {
+    process.stdout.write(JSON.stringify({ tool: { name: "validate_pattern", version: "1.0.0" }, error: optionErrors.join(" ") }, null, 2) + "\n");
     process.exit(1);
   }
   const results = walkExamples(root).map((p) => validateExample(p, options));
