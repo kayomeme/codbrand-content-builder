@@ -5,7 +5,7 @@ or a screenshot into native WordPress block markup.
 
 ## This is most of a skill, but not its entry point
 
-`SKILL.md` — the skill's instructions — **ships inside the COD Leads plugin** and is installed from
+`SKILL.md` — the skill's instructions — **ships inside the CodBrand plugin** and is installed from
 there. Everything `SKILL.md` refers to lives here:
 
 | in this repository | ships with the plugin |

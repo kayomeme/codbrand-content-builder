@@ -8,7 +8,7 @@ Native blocks already handle mobile. Use them correctly and the pattern is respo
 2. **`wp:columns` auto-stacks** below 782px (default). Don't fight it. Don't set `isStackedOnMobile:false` unless the design specifically needs side-by-side at all sizes (rare).
 3. **`wp:group` with flex + `flexWrap:"wrap"`** lets children wrap to new rows when horizontal space is tight. Use this for logo rows, badge rows, button rows.
 4. **Padding: prefer a preset ONLY on a block theme.** `var:preset|spacing|XX` scales on mobile *when the theme defines it* — a block theme's `theme.json` typically does. On a **CLASSIC theme there are no presets**, so `var:preset|…` resolves to nothing and the padding silently vanishes; the plugin's own `codbrand` companion theme is classic. Discover which you are on first (`theme-tokens.md`), then use presets or literals accordingly. *(An earlier version of this rule said "prefer presets over fixed `px`" unconditionally — that is wrong on half of all destinations.)*
-5. **Use `align:"full"` for full-width sections, `align:"wide"` or no align for content-width sections.** ⚠️ **On a COD Leads storefront `align:"full"` does NOT produce full-BLEED** — the store's width mode owns the page gutters and the theme's only rule is `.alignfull { max-width: none }`, which cannot escape a parent's padding. Measured: 80px gutters on desktop, 24px on mobile. Read `conversion-rules.md` → "`align:\"full\"` does NOT mean full-bleed" before promising an edge-to-edge design. *(An earlier version of this rule said "full-bleed"; the class is correct markup, the promise was not.)*
+5. **Use `align:"full"` for full-width sections, `align:"wide"` or no align for content-width sections.** ⚠️ **On a CodBrand storefront `align:"full"` does NOT produce full-BLEED** — the store's width mode owns the page gutters and the theme's only rule is `.alignfull { max-width: none }`, which cannot escape a parent's padding. Measured: 80px gutters on desktop, 24px on mobile. Read `conversion-rules.md` → "`align:\"full\"` does NOT mean full-bleed" before promising an edge-to-edge design. *(An earlier version of this rule said "full-bleed"; the class is correct markup, the promise was not.)*
 
 ## Common responsive patterns
 
@@ -153,7 +153,7 @@ Measured on the real store:
 The stacked mobile card is **WIDER** (287 > 277) and therefore **SHORTER** (463 < 484). Desktop needs
 ≥484px, mobile needs ≤463px: empty range again.
 
-**Root cause, and it is a property of every COD Leads storefront:** the reasoning assumed horizontal
+**Root cause, and it is a property of every CodBrand storefront:** the reasoning assumed horizontal
 chrome is constant across viewports. **The store's gutters are not** — `full_width_padded_style` is
 80px per side, `full_width_padded_mobile_style` is 24px. That **160px vs 48px** asymmetry shrinks the
 desktop container faster than the viewport shrinks, so just above the stacking breakpoint two columns

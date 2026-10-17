@@ -21,7 +21,7 @@ Slots: section name, background color, paddings. `cod-brand` and `metadata.name`
 
 ⚠️ **This snippet sets NO `contentSize`, because it cannot know your destination** — the same reasoning as `blockGap` below, and the same fix: **detect first.**
 
-A COD Leads storefront on the codbrand theme publishes its own content width, compiled from the merchant’s **Global Layout** settings. A section with no `contentSize` INHERITS it, and that is the whole point: one setting moves every section on the site.
+A CodBrand storefront on the codbrand theme publishes its own content width, compiled from the merchant’s **Global Layout** settings. A section with no `contentSize` INHERITS it, and that is the whole point: one setting moves every section on the site.
 
 Hardcoding a width here freezes the section at author time. The merchant then changes Global Layout and **nothing moves** — a block’s own `layout.contentSize` compiles to an explicit `max-width` that beats the inherited variable. Measured on a live store (09-09-2026): nine hardcoded values (2×1200px, 1×1280px, 3×1300px, 3 empty) sat against a 1240px setting and ignored it until they were removed; afterwards every section rendered at the merchant’s 1240px.
 
@@ -29,12 +29,12 @@ Hardcoding a width here freezes the section at author time. The merchant then ch
 
 *(This is skill rule #1 — never hardcode one store’s choices — applied to width. An earlier version of this snippet shipped `"contentSize":"1280px"`, which was exactly the violation that rule describes.)*
 
-⚠️ **Its HORIZONTAL padding is PROVISIONAL on a COD Leads storefront. Its vertical padding is not.**
+⚠️ **Its HORIZONTAL padding is PROVISIONAL on a CodBrand storefront. Its vertical padding is not.**
 
 `top` / `bottom` always survive and never conflict with anything — keep them.
 
 `left` / `right` stay in this snippet because on a plain WordPress destination they are the only
-gutter you have, and without them text touches the viewport edge on a phone. But on a COD Leads
+gutter you have, and without them text touches the viewport edge on a phone. But on a CodBrand
 storefront they are both **additive** and **removable**:
 
 - **Additive** — the page's own width mode already insets the content. Measured on a live store:
@@ -45,7 +45,7 @@ storefront they are both **additive** and **removable**:
   hides the control**, because the store's gutter then owns the horizontal box. Whatever you authored
   there is gone the moment they use it — by design, not by accident.
 
-**So detect the destination (step 0) and choose:** a COD Leads storefront → prefer leaving horizontal
+**So detect the destination (step 0) and choose:** a CodBrand storefront → prefer leaving horizontal
 padding OFF the section ROOT and let the store's gutter supply it; put insets on inner elements
 (cards, badges, columns) instead, where nothing strips them. No width-mode system → keep the 40px.
 

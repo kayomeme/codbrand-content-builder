@@ -295,7 +295,7 @@ For e-commerce sites with **product** categories, **WooCommerce is required** �
 
 If the project's brief is "no plugins" but the design clearly shows a product-category dropdown, flag the gap: ship `wp:categories` (post categories) as a placeholder OR a styled paragraph, and note in the pattern's `Description` that WooCommerce is needed for the product-categories functionality.
 
-## ⚠️ `align:"full"` does NOT mean full-bleed on a COD Leads storefront
+## ⚠️ `align:"full"` does NOT mean full-bleed on a CodBrand storefront
 
 **The store owns page width, and a page cannot out-muscle it from block markup.** This is the single
 most misleading thing you can carry over from generic WordPress knowledge, because the class is

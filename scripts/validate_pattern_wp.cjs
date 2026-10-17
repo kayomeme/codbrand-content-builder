@@ -16,7 +16,7 @@
  *                           definitively — will this paste cleanly, and stay
  *                           exactly as written when the page is next saved?
  *
- * THE FALLBACK, NOT THE FIRST CHOICE (since 15-09-2026 — SKILL.md step 5 (c), route 2). A COD Leads
+ * THE FALLBACK, NOT THE FIRST CHOICE (since 15-09-2026 — SKILL.md step 5 (c), route 2). A CodBrand
  * storefront runs the same check on its own wp-admin page, with the site's real WordPress and
  * nothing installed. Use THIS script for a publish only when BOTH hold:
  *   1. that page cannot run for this user — no browser the agent can drive, nobody logged in,

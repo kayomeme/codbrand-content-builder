@@ -54,21 +54,21 @@ published the site's own revision history is the durable copy.
 |---|---|---|
 | **title** | The human-readable name. | Shown in the site's admin list. |
 | **slug** | **The identity.** | Most routes look this slug up on the live site: found → UPDATE that row, absent → CREATE. That is the entire mechanism behind "re-publishing updates instead of duplicating", so a changed slug creates a second page rather than editing the first. Usually defaults to the slugified title — confirm it for your route. |
-| **target** | Which resource the content lands on. | The names below are a COD Leads storefront's; another destination will have its own set. |
+| **target** | Which resource the content lands on. | The names below are a CodBrand storefront's; another destination will have its own set. |
 | **width_mode** | How wide the content renders. | `""` inherits the theme default (`cl-full-width-padded` on codbrand — a gutter on both sides), **`none`** removes the wrapper for true edge-to-edge, or name one of the four store width classes. **A banded, full-bleed layout needs `none`** — `align:"full"` alone cannot escape the wrapper's padding, and **no store setting controls an ordinary page's width**, so if you do not deliver this value nobody else will. See `conversion-rules.md` → "`align:\"full\"` does NOT mean full-bleed". A destination without per-page width simply ignores it. |
 | *forced CSS / JS* | Only what no block setting can express — a hover, an animation, a `::before`, a media query. Most deliveries have none. | The code, **the level it goes on** (the narrowest one that reaches every place the content shows — a page, a product, the design of the one surface a custom block sits on, or the store) and **the class it hooks**, set on the block as `className`. Merge into what the level already holds; never overwrite. Never a block's own "Custom CSS" field — it does not survive a save through an API. Full rule: `SKILL.md` step 6. |
 
 ## Choosing the target
 
 **Where content lands is the DESTINATION's fact, not this skill's** — get it from the destination
-(step 0), because it changes with that site. On a COD Leads storefront the answer lives under
+(step 0), because it changes with that site. On a CodBrand storefront the answer lives under
 `/cl-api/v1/docs` → "Where your content is rendered"; the short version is:
 
 - **`pages`** — your markup IS the page. You own everything on it.
 - **`products`** — the plugin renders its own product UI (gallery, price, quantity offers,
   add-to-cart) and your content is appended **BELOW** it. Do not write a second hero, a second price,
   or your own order button; use the plugin's real one.
-- **`custom_blocks`** — a reusable fragment, shown wherever it is placed: on a COD Leads storefront through
+- **`custom_blocks`** — a reusable fragment, shown wherever it is placed: on a CodBrand storefront through
   its placements door (`/cl-api/v1/docs/custom_block_placements` — writing the block shows it nowhere).
   Authored and checked exactly like a page, and placed to render WITH the page — a block loaded after the
   page loses the CSS behind its layout settings (`SKILL.md` step 2). **The host may draw around it:** a

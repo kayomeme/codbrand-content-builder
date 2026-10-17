@@ -345,13 +345,13 @@ function systemReport(name, x) {
 
   const fams = [...x.families.keys()];
   L.push(pad("Typeface") + (fams.length ? fams.join(" · ") : "NONE SET — inherits the theme default"));
-  /* A literal stack is CORRECT off-plugin and WRONG on a COD Leads storefront, where fonts belong to
+  /* A literal stack is CORRECT off-plugin and WRONG on a CodBrand storefront, where fonts belong to
      the font manager and are referenced by css_var. The check cannot know the destination, so this
      is a note here rather than a validator warning — it would fire on every destination-agnostic
      page otherwise (measured: all 6 corpus examples use literal stacks, legitimately). */
   const literalFams = fams.filter((f) => !/^var\(--cl-/.test(String(f).trim()));
   if (literalFams.length) {
-    L.push(pad("") + `^ ${literalFams.length} literal stack(s), not plugin css_vars. On a COD Leads ` +
+    L.push(pad("") + `^ ${literalFams.length} literal stack(s), not plugin css_vars. On a CodBrand ` +
       `storefront register the face via design_controls/font_manager and use its css_var ` +
       `(var(--cl-fontN)) — see theme-tokens.md. Off-plugin, a literal is correct.`);
   }
