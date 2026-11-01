@@ -180,6 +180,18 @@ So if you want a dimmer overlay, change `dimRatio` to something other than 50 (e
 ### `core/paragraph`
 - `"align":"center"|...`, `"dropCap":true`.
 - All typography supports.
+- **A background brings WordPress's own padding.** The block library prints
+  `:root :where(p.has-background){padding:1.25em 2.375em}` on every page, so a paragraph with a
+  background colour, palette colour or gradient is padded on every side it leaves unset. Right for a
+  text panel; wrong for a badge, pill or dot — measured on one storefront: 48×48 circles drawn by page
+  CSS rendered as 80×48 ovals. Set all four sides yourself, `0` when the shape comes from elsewhere.
+  `validate_pattern.mjs` warns about the sides left unset.
+
+```html
+<!-- wp:paragraph {"style":{"color":{"background":"#1f2937","text":"#ffffff"},"spacing":{"padding":{"top":"4px","right":"12px","bottom":"4px","left":"12px"}}}} -->
+<p class="has-text-color has-background" style="color:#ffffff;background-color:#1f2937;padding-top:4px;padding-right:12px;padding-bottom:4px;padding-left:12px">New</p>
+<!-- /wp:paragraph -->
+```
 
 ### `core/buttons` + `core/button`
 - Wrapper supports flex layout for spacing.

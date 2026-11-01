@@ -870,6 +870,31 @@ function checkHorizontalPadding(markers) {
 }
 
 /**
+ * A paragraph with a background and sides left unpadded. WordPress's block library prints
+ * `:root :where(p.has-background){padding:1.25em 2.375em}` on every page, for any paragraph whose
+ * background is set (a colour, a palette colour or a gradient), so each side the block leaves unset
+ * renders padded anyway. Measured on one storefront (WordPress 7.1.2, 07-10-2026): 17px step-number
+ * dots, drawn as 48x48 circles by page CSS, rendered as 80x48 ovals; both validators passed them.
+ * WARNING, not an error: on a text panel that padding can be exactly what was meant. On a badge, pill
+ * or dot, set every side yourself — 0 when the shape comes from elsewhere.
+ */
+function checkPaintedParagraphPadding(markers) {
+  const warns = [];
+  for (const m of markers) {
+    if (m.kind === "close" || m.name !== "paragraph" || !m.attrs) continue;
+    const color = (m.attrs.style || {}).color || {};
+    if (!(color.background || color.gradient || m.attrs.backgroundColor || m.attrs.gradient)) continue;
+    const pad = ((m.attrs.style || {}).spacing || {}).padding;
+    if (typeof pad === "string" && pad.trim()) continue;
+    const p = pad && typeof pad === "object" ? pad : {};
+    const unset = ["top", "right", "bottom", "left"].filter((s) => p[s] === undefined || p[s] === null || String(p[s]).trim() === "");
+    if (!unset.length) continue;
+    warns.push(`wp:paragraph at offset ${m.position}: a background and no padding of its own on ${unset.join(", ")}, so WordPress pads ${unset.length === 4 ? "it" : "those sides"} anyway (1.25em top and bottom, 2.375em left and right: :root :where(p.has-background)). Right for a text panel; for a badge, pill or dot set style.spacing.padding on every side — 0 when the shape comes from elsewhere (block-supports.md → core/paragraph).`);
+  }
+  return warns;
+}
+
+/**
  * `var:preset|…` on a theme that has no presets.
  *
  * A preset string resolves through a preset SCALE in the theme's theme.json
@@ -1153,6 +1178,7 @@ export function validateMarkup(markup, options = {}) {
   for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null, options.blockGapSupported === true)) warnings.push(issue);
   for (const issue of checkTypefaceSet(markup)) warnings.push(issue);
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
+  for (const issue of checkPaintedParagraphPadding(markers)) warnings.push(issue);
   for (const issue of checkPresetTokens(markup)) warnings.push(issue);
   const hpad = checkHorizontalPadding(markers);
   const esc = checkCommentJsonEscaping(markers);
