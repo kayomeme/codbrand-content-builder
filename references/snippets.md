@@ -218,22 +218,66 @@ Slots: size (JSON width/height AND img width/height must match), border color/wi
 
 ---
 
-## 10. FAQ accordion (`wp:details` — styled, and the weight trap)
+## 10. FAQ accordion (`wp:details` — styled, the whole row opens it, and the weight trap)
 
 An unstyled `wp:details` renders as a raw browser disclosure widget: measured live at `padding 0`,
 `border-top-width 0`, `margin-bottom 0`, summary in the theme default face. Both validators passed it
 and it was the first thing named when the design was judged wrong. Copy this instead.
 
+**The row's padding goes on the `<summary>`, never on the block.** `core/details` has no setting for its
+`<summary>` or its marker (WordPress 7.1.4), and a padding set on the block lands on `<details>`: it pads
+the whole row while only the one-line summary opens it. Measured on one store (01-11-2026): the clickable
+summary was 17px of a 50px row, a click 6px into the row did nothing, and the browser's ▸ sat on the left.
+So the row's padding and its marker are CSS handed over with its level (`SKILL.md` step 6), hooked by the
+`cb-faq` class on the group around the questions; everything else stays block settings. (a) warns on a
+`wp:details` padded at the top or bottom. *(Until 01-11-2026 this snippet padded the block.)*
+
 ```html
-<!-- wp:details {"summary":"Combien de temps dure la livraison ?","style":{"border":{"radius":"14px","width":"1px","color":"#e5e7eb"},"spacing":{"padding":{"top":"18px","right":"20px","bottom":"18px","left":"20px"},"margin":{"bottom":"12px"}},"typography":{"fontSize":"17px","fontWeight":"600"},"color":{"background":"#ffffff"}}} -->
-<details class="wp-block-details has-border-color has-background" style="border-color:#e5e7eb;border-width:1px;border-radius:14px;background-color:#ffffff;margin-bottom:12px;padding-top:18px;padding-right:20px;padding-bottom:18px;padding-left:20px;font-size:17px;font-weight:600"><summary>Combien de temps dure la livraison ?</summary><!-- wp:paragraph {"style":{"typography":{"fontSize":"16px","fontWeight":"400","lineHeight":"1.7"},"color":{"text":"#555555"},"spacing":{"margin":{"top":"12px","bottom":"0"}}}} -->
-<p class="has-text-color" style="color:#555555;margin-top:12px;margin-bottom:0;font-size:16px;font-weight:400;line-height:1.7">Entre 24 et 72 heures selon la ville.</p>
+<!-- wp:group {"metadata":{"name":"FAQ"},"className":"cb-faq","layout":{"type":"constrained"}} -->
+<div class="wp-block-group cb-faq"><!-- wp:details {"summary":"Combien de temps dure la livraison ?","style":{"border":{"radius":"14px","width":"1px","color":"#e5e7eb"},"spacing":{"margin":{"bottom":"12px"}},"typography":{"fontSize":"17px","fontWeight":"600"},"color":{"background":"#ffffff"}}} -->
+<details class="wp-block-details has-border-color has-background" style="border-color:#e5e7eb;border-width:1px;border-radius:14px;background-color:#ffffff;margin-bottom:12px;font-size:17px;font-weight:600"><summary>Combien de temps dure la livraison ?</summary><!-- wp:paragraph {"style":{"typography":{"fontSize":"16px","fontWeight":"400","lineHeight":"1.7"},"color":{"text":"#555555"},"spacing":{"margin":{"top":"0","bottom":"0"},"padding":{"top":"0","right":"20px","bottom":"18px","left":"20px"}}}} -->
+<p class="has-text-color" style="color:#555555;margin-top:0;margin-bottom:0;padding-top:0;padding-right:20px;padding-bottom:18px;padding-left:20px;font-size:16px;font-weight:400;line-height:1.7">Entre 24 et 72 heures selon la ville.</p>
 <!-- /wp:paragraph --></details>
-<!-- /wp:details -->
+<!-- /wp:details --></div>
+<!-- /wp:group -->
 ```
 
-Slots: summary text, border/background/radius, paddings, the answer paragraph. Repeat one `wp:details`
-per question — `margin-bottom` on each is what separates them (there is no gap to rely on).
+The CSS to hand over — on the page with the FAQ, or the store when several pages carry one:
+
+```css
+.cb-faq .wp-block-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  cursor: pointer;
+}
+.cb-faq .wp-block-details > summary::-webkit-details-marker {
+  display: none;
+}
+.cb-faq .wp-block-details > summary::after {
+  content: "+";
+  flex: none;
+  font-weight: 400;
+  font-size: 1.25em;
+  line-height: 1;
+}
+.cb-faq .wp-block-details[open] > summary::after {
+  content: "−";
+}
+```
+
+Measured on one store (WordPress 7.1.4, 01-11-2026): rows 60px tall from 600px up (82px at 390px, the
+question on two lines), the summary filling 58px of each; a click 6px into the row, in its middle or 6px from
+its right edge opens it; "+" on the right. The markup passes (a) and WordPress's check, on the store's page
+and locally. Rows clear 44px — WCAG 2.5.5 (AAA) and Apple's 44pt; 24px (WCAG 2.5.8, AA) is the floor.
+
+Slots: summary text, border/background/radius, the answer paragraph and its padding (its sides match the
+summary's 20px), the marker characters (+ and − here; a chevron works the same way). Repeat one
+`wp:details` per question inside the group — `margin-bottom` on each is what separates them (there is no
+gap to rely on).
 
 ⚠️ **THE TRAP — `fontWeight` on `details` is inherited by the ANSWER.** Verified: the weight lands on
 the `<details>` element itself (`…font-size:17px;font-weight:600`), so ordinary CSS inheritance hands
@@ -370,6 +414,58 @@ Load-bearing:
 
 Verified 30-09-2026 on a WordPress 7.1 store with block-gap support: 0px from each divider to the next
 row at 1423px and 375px, icons 22×22, and every block valid in the block editor.
+
+## 14. Swipe row on phones (content the store does not render)
+
+For cards, quotes or features — **not** for categories or products: those are the store's listing with
+its slider (`SKILL.md` → "Prefer the block to a copy"). No block setting makes a row scroll sideways, so the
+row is `wp:columns` kept side by side (`"isStackedOnMobile":false`) and hooked by the `cb-swipe` class, and
+the scrolling is CSS handed over with its level (`SKILL.md` step 6). Leave the columns without a width: a
+width is written inline on the column and wins over the stylesheet.
+
+```html
+<!-- wp:columns {"isStackedOnMobile":false,"metadata":{"name":"Swipe row"},"className":"cb-swipe"} -->
+<div class="wp-block-columns is-not-stacked-on-mobile cb-swipe"><!-- wp:column {"style":{"color":{"background":"#e0e7ff"},"spacing":{"padding":{"top":"24px","right":"20px","bottom":"24px","left":"20px"}}}} -->
+<div class="wp-block-column has-background" style="background-color:#e0e7ff;padding-top:24px;padding-right:20px;padding-bottom:24px;padding-left:20px"><!-- wp:paragraph -->
+<p>Card one</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column {"style":{"color":{"background":"#e0e7ff"},"spacing":{"padding":{"top":"24px","right":"20px","bottom":"24px","left":"20px"}}}} -->
+<div class="wp-block-column has-background" style="background-color:#e0e7ff;padding-top:24px;padding-right:20px;padding-bottom:24px;padding-left:20px"><!-- wp:paragraph -->
+<p>Card two</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column -->
+
+<!-- wp:column {"style":{"color":{"background":"#e0e7ff"},"spacing":{"padding":{"top":"24px","right":"20px","bottom":"24px","left":"20px"}}}} -->
+<div class="wp-block-column has-background" style="background-color:#e0e7ff;padding-top:24px;padding-right:20px;padding-bottom:24px;padding-left:20px"><!-- wp:paragraph -->
+<p>Card three</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:column --></div>
+<!-- /wp:columns -->
+```
+
+The CSS to hand over — the page that carries the row:
+
+```css
+@media (max-width: 767px) {
+  .cb-swipe.wp-block-columns {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .cb-swipe.wp-block-columns.is-not-stacked-on-mobile > .wp-block-column {
+    flex: 0 0 72%;
+    scroll-snap-align: start;
+  }
+}
+```
+
+Parameters: **the peek** — at `72%` about a quarter of the next card shows, which is what tells a visitor the
+row scrolls; **the breakpoint** — the destination's phone width (767px on a CodBrand storefront; read yours).
+Measured on one store (01-11-2026), four cards: at 390px cards of 270px in a row that scrolls (1,151px), the
+second showing 81px; at 600px cards of 421px; from 768px a plain four-column row. The markup passes (a) and
+WordPress's check, on the store's page and locally.
 
 ## ⚠️ blockGap renders ONLY if the destination theme opts in — DETECT it, never assume
 

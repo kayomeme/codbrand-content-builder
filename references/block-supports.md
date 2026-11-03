@@ -325,6 +325,18 @@ Canonical circular bordered image: see `snippets.md` #9.
   </ul>
   <!-- /wp:list -->
   ```
+- **In a box, set the list's left padding** (`style.spacing.padding.left`). Left unset, the browser indents
+  it 40px, so its text sits 40px further in than the box's other text — measured on one store (01-11-2026),
+  a checkout info box. Measured on dev1 (01-11-2026) in a box padded 16px, 16px text: unset → text 40px in;
+  `"1.25em"` → 20px in, the bullet inside the box; `"0"` → text in line with the box's text and the bullet
+  hanging in the box's padding, at its very edge — use `0` only when the box's padding is wider than that.
+  ```html
+  <!-- wp:list {"style":{"spacing":{"padding":{"left":"1.25em"}}}} -->
+  <ul style="padding-left:1.25em" class="wp-block-list"><!-- wp:list-item -->
+  <li>…</li>
+  <!-- /wp:list-item --></ul>
+  <!-- /wp:list -->
+  ```
 
 ### `core/separator`
 - Style variations: `{"className":"is-style-default"|"is-style-wide"|"is-style-dots"}`.

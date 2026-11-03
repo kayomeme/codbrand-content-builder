@@ -29,6 +29,9 @@
  *   - rows that draw their own divider sit in a container whose Block spacing is set on purpose (warning)
  *   - every attribute has the type the destination declares, given its block types (--block-types); without
  *     them, a quoted number in a cl/ attribute named …Id or …PerPage (warning)
+ *   - headings descend one level at a time (warning); with --target, the content's h1 count fits where it lands
+ *   - body text estimated over 80 characters per line (warning; the estimate shared with audit_design.mjs)
+ *   - a wp:details padded vertically, which leaves most of its row unclickable (warning)
  *
  * TWO MODES:
  *   node validate_pattern.mjs path/to/markup.html   validate ONE file — what an agent just made
@@ -37,6 +40,9 @@
  *                                                   block registry (SKILL.md → "Embedding a plugin (cl/…) block")
  *   … --block-gap=supported                         once you have DETECTED that the destination renders blockGap
  *                                                   (references/snippets.md → "Detect it"): no "confirm it" warning
+ *   … --target=pages|pages-with-title|products|custom_blocks
+ *                                                   where the content lands (SKILL.md step 2): decides how many h1s
+ *                                                   it may hold — one on a page, none under a product
  *
  * The corpus mode exists to keep the examples honest: they are what the next agent learns from, so
  * an example that would not itself pass the gate teaches a defect. It is NOT a publish step —
@@ -48,6 +54,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+// A static import of a module that imports this one back: safe because neither runs the other's code while
+// loading — only these functions and constants are read, later, inside checkLineLength.
+import { collect as collectDesign, GLYPH_EM, LINE_LENGTH_MAX } from "./audit_design.mjs";
 
 // The teaching corpus lives INSIDE the skill so it ships with it — it is examples an agent learns
 // from, not a publishing queue. Resolved relative to this script, not to cwd, so the validator works
@@ -792,6 +801,12 @@ const DIRECT_TEXT_BLOCKS = new Set([
   "heading", "paragraph", "list", "quote", "pullquote", "details", "preformatted", "verse", "table",
 ]);
 
+/** A block given the store's padded width (its per-block Width mode: `cl-full-width-padded`, `cl-boxed-mode-padded`
+ *  in className) is padded by the store's own CSS, phone value included — references/conversion-rules.md → "one
+ *  owner of the width". It needs no horizontal padding of its own. */
+const STORE_PADDED_WIDTH = /(^|\s)cl-(full-width|boxed-mode)-padded(\s|$)/;
+const hasStorePaddedWidth = (attrs) => STORE_PADDED_WIDTH.test(String(attrs?.className || ""));
+
 /** True when a side is left at zero: absent, empty, or an explicit 0. A preset or any non-px unit
  *  is REAL padding -- paddingPx returns null for those on purpose, so never read null as zero. */
 function zeroSide(v) {
@@ -847,7 +862,7 @@ function checkHorizontalPadding(markers) {
 
     // ---- THE FLOOR. Runs BEFORE the bail below, because the defect shape is a padding object
     // carrying only top and bottom -- on which the old early-continue skipped the block entirely.
-    if (PAINTED_CONTAINERS.has(m.name) && paintsAnEdge(m.attrs)) {
+    if (PAINTED_CONTAINERS.has(m.name) && paintsAnEdge(m.attrs) && !hasStorePaddedWidth(m.attrs)) {
       const p = pad && typeof pad === "object" ? pad : {};
       if (zeroSide(p.left) && zeroSide(p.right) && hasDirectTextChild(markers, i)) {
         errs.push(`${where}: paints a background/border AND holds text directly, but sets no horizontal padding. The text will sit exactly ON the band's visible edge, both sides. The page width mode does NOT rescue this -- it insets the block INCLUDING its background, so the gap between the edge and the text stays 0 at every width mode and every viewport. Decide which of the three you meant: the PAGE should be this colour (use PUT /pages/{id}/plugin with background=var(--cl-page-bg-colorN) and drop this background), a full-width BAND (publish the page width_mode="none" AND pad this block), or a CARD (pad it and give it a radius). The corpus norm is 40px per side. Measured on a live store 20-09-2026: all SEVEN authored pages shipped "background-color:#ffffff;padding-top:72px;padding-bottom:80px" and every line touched the card edge.`);
@@ -1135,6 +1150,109 @@ function pluginBlocksUnchecked(markers) {
   return [`${names.join(", ")}: attribute types not checked against this store — read its block types on the check page and pass them with --block-types=<file> (SKILL.md → "Embedding a plugin (cl/…) block", rule 2). WordPress's own checks do not flag a wrongly typed attribute.`];
 }
 
+/** A wp:heading's level; core/heading's default is 2. */
+function headingLevel(m) {
+  const level = Number(m.attrs?.level ?? 2);
+  return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
+}
+
+/**
+ * A heading that skips a rank (an h2 followed by an h4). The skill's rule (conversion-rules.md →
+ * Accessibility) is descending levels without gaps: a screen-reader user who moves by heading meets an h4
+ * with no h3 above it. A WARNING — W3C's page-structure tutorial says skipped ranks "should be avoided where
+ * possible", not that they fail WCAG on their own. Measured on one storefront (01-11-2026): its contact page
+ * went h1 → h3 where every other page used h2 for the same kind of section.
+ */
+function checkHeadingLevels(markers) {
+  const issues = [];
+  let prev = null;
+  for (const m of markers) {
+    if (m.kind === "close" || m.name !== "heading") continue;
+    const level = headingLevel(m);
+    if (level === null) continue;
+    if (prev !== null && level > prev + 1) {
+      const missing = level - prev === 2 ? `an h${prev + 1}` : `h${prev + 1}–h${level - 1}`;
+      issues.push(`wp:heading at offset ${m.position}: h${prev} → h${level} skips ${missing}. Headings descend one level at a time — make it an h${prev + 1}, or give it the level its section's other headings use.`);
+    }
+    prev = level;
+  }
+  return issues;
+}
+
+/**
+ * The page's h1 (conversion-rules.md → "The page's ONE <h1> comes from its hero pattern"). How many the
+ * content may hold depends on where it lands, so this runs only with --target:
+ *   pages             exactly one — the theme prints no page title unless the page's show_title is on
+ *   pages-with-title  none — the theme prints the shown title as the h1
+ *   products          none — the product page prints the product's title as its h1 (read on a store, 01-11-2026)
+ *   custom_blocks     none expected — a custom block shows on pages that carry their own h1 (a warning)
+ * Measured on one storefront (01-11-2026): its Home and Shop shipped with no h1 at all, every check green.
+ */
+const TARGETS = ["pages", "pages-with-title", "products", "custom_blocks"];
+
+function checkH1ForTarget(markers, target) {
+  const errs = [];
+  const warns = [];
+  if (!target) return { errs, warns };
+  const h1s = markers.filter((m) => m.kind !== "close" && m.name === "heading" && headingLevel(m) === 1);
+  const at = h1s.map((m) => m.position).join(", ");
+  if (target === "pages") {
+    if (!h1s.length) {
+      errs.push(`no h1 on this page — its one h1 is the hero's heading ("level":1). The theme prints no title unless the page's show_title is on; then pass --target=pages-with-title and write none. Without an h1, screen readers and search engines get no topic for the page (WCAG 2.4.6).`);
+    } else if (h1s.length > 1) {
+      warns.push(`${h1s.length} h1s on this page (offsets ${at}) — keep one, the hero's, and make the others h2.`);
+    }
+  } else if (h1s.length) {
+    const why = target === "pages-with-title" ? "the page shows its title, which the theme prints as the h1"
+      : target === "products" ? "the product page prints the product's title as its h1"
+      : "a custom block shows on pages that carry their own h1";
+    (target === "custom_blocks" ? warns : errs).push(`h1 at offset ${at} — ${why}. Start this content at h2.`);
+  }
+  return { errs, warns };
+}
+
+/**
+ * Characters per line of body text, from audit_design.mjs's own estimate (one implementation, two readers):
+ * above LINE_LENGTH_MAX a WARNING here, beside the other findings, rather than only in the advisory block. An
+ * ESTIMATE — the message says so and asks for the rendered measurement. Measured on one storefront
+ * (01-11-2026): 13px body in a 640px column read 105–119 characters per line on seven pages, with the advisory
+ * (then at 90) as the only signal.
+ */
+function checkLineLength(markup) {
+  let measures;
+  try {
+    measures = collectDesign(markup).measures;
+  } catch {
+    return [];
+  }
+  const long = measures.filter((m) => m.chars > LINE_LENGTH_MAX && m.textLen > LINE_LENGTH_MAX);
+  if (!long.length) return [];
+  const worst = long.reduce((a, b) => (b.chars > a.chars ? b : a));
+  const fit = Math.round(LINE_LENGTH_MAX * worst.size * GLYPH_EM);
+  return [`~${worst.chars} characters per line ESTIMATED (${worst.size}px text at ${worst.width})` +
+    (long.length > 1 ? ` — ${long.length} paragraphs over ${LINE_LENGTH_MAX}` : "") +
+    `. Body text reads best at 45-75 characters; WCAG 1.4.8 names ${LINE_LENGTH_MAX} as the limit. Narrow the measure to about ${fit}px at ${worst.size}px, or raise the size. The count assumes an average glyph of half the font size — measure the longest line on the rendered page before calling it fixed (SKILL.md checklist).`];
+}
+
+/**
+ * A wp:details padded vertically. The block's padding lands on <details>, so it pads the whole row while only
+ * the one-line <summary> opens it: measured on one storefront (01-11-2026), the clickable summary was 17px of a
+ * 50px row, and a click 6px into the row did nothing. core/details has no setting for the summary, so its
+ * padding is handed-over CSS — references/snippets.md §10. A WARNING.
+ */
+function checkDetailsRowPadding(markers) {
+  const warns = [];
+  for (const m of markers) {
+    if (m.kind === "close" || m.name !== "details" || !m.attrs) continue;
+    const pad = m.attrs.style?.spacing?.padding;
+    const padded = typeof pad === "string" ? !zeroSide(pad)
+      : Boolean(pad) && (!zeroSide(pad.top) || !zeroSide(pad.bottom));
+    if (!padded) continue;
+    warns.push(`wp:details at offset ${m.position}: its padding pads the whole row, but only the one-line <summary> opens it, so most of the row does nothing when tapped. Leave the block's top and bottom padding at 0 and pad the summary with the FAQ snippet's handed-over CSS (references/snippets.md §10).`);
+  }
+  return warns;
+}
+
 /**
  * THE VALIDATOR. Takes MARKUP, not a path — so an agent can check what it just generated without
  * writing a file first, which is the whole point of the corpus/output split: what the agent produces
@@ -1145,6 +1263,8 @@ function pluginBlocksUnchecked(markers) {
  * as the store's check page returns them. Optional; see checkAttributeTypes.
  * options.blockGapSupported — true once the author has detected that the destination renders blockGap; see
  * checkBlockGapReliance.
+ * options.target — where the content lands (one of TARGETS); it decides how many h1s it may hold. Optional; see
+ * checkH1ForTarget.
  */
 export function validateMarkup(markup, options = {}) {
   const errors = [];
@@ -1180,6 +1300,12 @@ export function validateMarkup(markup, options = {}) {
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
   for (const issue of checkPaintedParagraphPadding(markers)) warnings.push(issue);
   for (const issue of checkPresetTokens(markup)) warnings.push(issue);
+  for (const issue of checkHeadingLevels(markers)) warnings.push(issue);
+  for (const issue of checkDetailsRowPadding(markers)) warnings.push(issue);
+  for (const issue of checkLineLength(markup)) warnings.push(issue);
+  const h1 = checkH1ForTarget(markers, options.target);
+  for (const issue of h1.errs) errors.push(issue);
+  for (const issue of h1.warns) warnings.push(issue);
   const hpad = checkHorizontalPadding(markers);
   const esc = checkCommentJsonEscaping(markers);
   for (const issue of esc.errs) errors.push(issue);
@@ -1250,30 +1376,41 @@ function walkExamples(root) {
 async function designFindings(markup) {
   try {
     const audit = await import("./audit_design.mjs");
-    return audit.analyse(audit.collect(markup)).map((f) => `[${f.severity}] ${f.message}`);
+    // Line length is a warning of this validator now (checkLineLength), so it is not repeated here.
+    return audit.analyse(audit.collect(markup)).filter((f) => f.id !== "line-length").map((f) => `[${f.severity}] ${f.message}`);
   } catch {
     return [];
   }
 }
 
 /**
- * `[markup file or examples dir] [--block-types=<file> | --block-types <file>] [--block-gap=supported]`. The value of
- * --block-types or --block-gap is never taken for the markup file.
+ * `[markup file or examples dir] [--block-types=<file>] [--block-gap=supported] [--target=<where it lands>]`, each
+ * also as `--option value`. An option's value is never taken for the markup file.
  */
 function parseArgs(argv) {
   let target = null;
   let typesFile = null;
   let blockGap = null;
+  let landsOn = null;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--block-types") { typesFile = argv[++i] ?? ""; continue; }
     if (a.startsWith("--block-types=")) { typesFile = a.slice("--block-types=".length); continue; }
     if (a === "--block-gap") { blockGap = argv[++i] ?? ""; continue; }
     if (a.startsWith("--block-gap=")) { blockGap = a.slice("--block-gap=".length); continue; }
+    if (a === "--target") { landsOn = argv[++i] ?? ""; continue; }
+    if (a.startsWith("--target=")) { landsOn = a.slice("--target=".length); continue; }
     if (a.startsWith("--")) continue;
     if (target === null) target = a;
   }
-  return { target, typesFile, blockGap };
+  return { target, typesFile, blockGap, landsOn };
+}
+
+/** --target names where the content lands (SKILL.md step 2). An unknown value is an error, never a silent skip. */
+function readTarget(value) {
+  if (value === null) return { target: null };
+  if (TARGETS.includes(value)) return { target: value };
+  return { error: `--target: "${value}" is not one of ${TARGETS.join(", ")} — the resource the content is written to (SKILL.md step 2), or pages-with-title for a page that shows its title.` };
 }
 
 /** --block-gap takes one value, `supported`, given once support is detected. Any other value is an error, never a silent skip. */
@@ -1296,11 +1433,12 @@ function loadBlockTypes(file) {
 }
 
 async function main() {
-  const { target: arg, typesFile, blockGap } = parseArgs(process.argv.slice(2));
+  const { target: arg, typesFile, blockGap, landsOn } = parseArgs(process.argv.slice(2));
   const types = loadBlockTypes(typesFile);
   const gap = readBlockGap(blockGap);
-  const optionErrors = [types.error, gap.error].filter(Boolean);
-  const options = { blockTypes: types.blockTypes, blockGapSupported: gap.blockGapSupported };
+  const lands = readTarget(landsOn);
+  const optionErrors = [types.error, gap.error, lands.error].filter(Boolean);
+  const options = { blockTypes: types.blockTypes, blockGapSupported: gap.blockGapSupported, target: lands.target };
 
   // SINGLE-FILE MODE — validate one markup file (what an agent just generated).
   if (arg && existsFile(path.resolve(process.cwd(), arg))) {

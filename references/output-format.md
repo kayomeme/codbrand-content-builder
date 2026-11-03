@@ -75,7 +75,10 @@ published the site's own revision history is the durable copy.
   placement can wear a frame, or a collapsible header and body, from the store's design, while other routes
   show the block bare — the doc says which. So decide who draws the box before you write it: no card of the
   content's own where the host frames it, or a placement whose look you choose to fit a content that draws
-  its own — never both, which shows as a box inside a box. *(Corrected 16-10-2026: this said the merchant
+  its own — never both, which shows as a box inside a box. **The same for its side gutter:** inside a host
+  that already pads (a product page's info column, a box in the checkout), the block takes no side padding of
+  its own. Measured on one store (01-11-2026): a custom block's own side padding, added to the host's 20px,
+  put its heading 16px further in than everything around it on phones. *(Corrected 16-10-2026: this said the merchant
   places it "from the plugin's admin".)*
 
 On any other destination, establish the equivalent before authoring. If you cannot, assume your

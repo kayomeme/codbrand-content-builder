@@ -200,7 +200,9 @@ Rule of thumb: if the URL contains a hostname you or the client control, it does
   validator sees this — nothing in the markup is wrong; the height only exists once rendered. So it is
   yours to prevent at authoring time: give any link that is a standalone control its own
   `style.spacing.padding` (≥4px top and bottom on 16px text clears 24px), and prefer a `wp:button`
-  over a bare paragraph link for anything the visitor is meant to tap.
+  over a bare paragraph link for anything the visitor is meant to tap. A FAQ's `<summary>` takes no block
+  setting at all: its padding and marker are the FAQ snippet's handed-over CSS (`snippets.md` §10), which
+  makes the whole row the tap target.
 - **This skill emits page content, not design-level CSS.** When a target is only reachable by styling
   the theme's own output (a nav `<li><a>` the theme prints itself), say so in the Description rather
   than assuming someone will notice — the fix belongs to whoever owns that CSS.
@@ -214,6 +216,12 @@ Rule of thumb: if the URL contains a hostname you or the client control, it does
   does — and every pattern after it starts at h2. When you are producing a single pattern and cannot
   know whether it will be first on the page, say so in its `Description` so whoever assembles the page
   can promote its top heading.
+  **Where the content lands decides the count** — pass it to step 5 (a) as `--target`, which checks it:
+  a page → one, the hero's; a page that shows its title (its `show_title` option) → none, the theme prints
+  the title as the h1; a product's content → none, the product page prints the product's title as its h1
+  (read on one store, 01-11-2026); a custom block → none. Measured on one store (01-11-2026): its Home and
+  Shop shipped with no h1, and this skill's own About-hero example taught an h2 for the page title (it is an
+  h1 since).
 
 **When to use `wp:html` vs `wp:image`:**
 - A line icon → a bare `<svg>` in a `wp:html`, sized and coloured by its Icon group (`SKILL.md` → "Icons")
@@ -401,6 +409,18 @@ background does: the page's gutters inset the block, so what you get is a card y
   paints, and it carries padding and a radius so it reads as a card on purpose.
 - **The BLOCKS own it** (`width_mode: "none"`). Every band then paints its own background edge to
   edge and owns its horizontal padding, because nothing else insets its text.
+- **No wrapper, and the store's own blocks on the page too** (a listing, reviews — a CodBrand front page has
+  no wrapper by default): your sections must start where those blocks start, at every width. They carry the
+  store's width class — boxed and padded unless their design says otherwise (the listing's
+  `…_global_settings` doc names the setting) — and a padding of your own cannot follow it: block padding has
+  no media query, and no `clamp()` steps from a phone gutter to a desktop one. **Give each section the same
+  class** through the store's per-block width — on a CodBrand storefront the group's or cover's Settings →
+  Width mode, which writes that class (`cl-boxed-mode-padded`, `cl-full-width-padded` …) into its
+  `className` with a constrained layout. A painted band keeps its background on an outer group and puts the
+  class on the group inside it. Measured on one store (dev1, 01-11-2026), a no-wrapper page with a products
+  listing: sections with the listing's class started where it did at 390, 600, 768 and 1408px (16 / 16 / 60
+  / 60px); a `clamp(16px, 3.4vw, 48px)` padding was off by 0 / 4 / 34 / 12px — the drift another store
+  shipped on every page. Check it on the rendered page (`responsive.md` → "Do the edges line up?").
 
 Mixing the two is the defect above, and it is **silent**: every call returned `200`, and the page
 looks deliberate in a screenshot until you notice the text touching the slab.

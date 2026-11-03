@@ -191,6 +191,16 @@ size. This is the canonical pair — one section for tablets and computers, one 
 - **The sizes are WordPress's**, not the store's phone width: phone up to 480px, tablet up to 782px, computer
   above — unless the theme sets its own (`settings.viewport` in its `theme.json`). A phone held sideways is
   wider than 480px, often wider than 782px, so it gets the tablet's or even the computer's choice.
+- **Between 481 and 781px nothing is a phone yet, but `wp:columns` already stack** (below 782px, unless
+  `"isStackedOnMobile":false`). A row whose second column hides on phones therefore shows **both columns,
+  stacked full width**, there — measured on one store (01-11-2026): a split hero of two 540–584px panels, its
+  only button pushed below the first screen on small tablets. Choose on purpose, then look at 600 and 768px:
+  hide that column on tablets too (`{"mobile":false,"tablet":false}`: one panel up to 782px), or keep the row
+  side by side (`"isStackedOnMobile":false` and no column widths: two panels from 481px, and on phones the
+  remaining column fills the row). Measured on dev1 (01-11-2026): at 600px the first way showed one 585px
+  panel and the second two 280px panels side by side; at 390px both showed one panel, 375px wide. A store's
+  own phone layout may end elsewhere (767px on a CodBrand storefront): 768–781px is then its desktop and
+  WordPress's tablet.
 - **It is CSS.** A hidden block is still in the page, and its images still download. Two heavy heroes, one per
   size, cost both on every device: prefer one block that adapts (stacking, `clamp()`) and keep this for what
   really differs.
@@ -215,7 +225,9 @@ words mid-word.
 
 1. Look at the page at **375px** as well as desktop. 375px is the common small-phone width and it is
    below every stacking breakpoint that matters (`wp:media-text` stacks at 600px, `wp:columns` at
-   781px), so it exercises the stacked layout too.
+   781px), so it exercises the stacked layout too. **With per-device visibility or `wp:columns` on the
+   page, look at 600 and 768px as well**: between 481 and 781px WordPress hides nothing as a phone while
+   columns already stack ("Phones only, or not on phones" above).
 2. **Report MEASUREMENTS, not impressions.** "The question column computes to 5px wide and wraps
    mid-word" is a finding; "looks a bit tight on mobile" is not, and cannot be acted on.
 3. Check the elements the change actually touched — computed width, the horizontal padding sum, and
@@ -236,6 +248,22 @@ frame and still differ on a real phone. Measured on one store (29-09-2026): a pr
 filter and the header's phone menu never appeared in a 375px frame. Two more traps: a page cache that
 keeps one copy for every device can serve the computer copy to a phone (the store's docs say how it
 caches), and a tablet can get either output, depending on what its browser says it is.
+
+### Do the edges line up?
+
+Where your sections sit next to the store's own blocks (a listing, reviews), their left edges must match at
+every width — no markup check can see it, because the store's blocks are drawn only when the page renders.
+On the published page, at 390, 768 and desktop width, run this in the browser: it lists each top-level
+block and the left edge of its content (inside the store's width class when it has one).
+
+```js
+(() => { let box = document.querySelector('.cod-brand')?.parentElement; if (!box) return 'no .cod-brand block'; while (box.children.length === 1) box = box.firstElementChild; const W = '[class*="cl-boxed-mode"], [class*="cl-full-width"]'; return [...box.children].map((el) => { const t = el.matches(W) ? el : el.querySelector(W) || el; const r = t.getBoundingClientRect(), cs = getComputedStyle(t); return r.width ? `${String(el.className).split(' ').slice(0, 2).join(' ')} → ${Math.round(r.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth))}` : null; }).filter(Boolean); })()
+```
+
+Sections meant to share the page's text column should report the same number as the store's blocks; full-bleed
+rows report 0 by design. Measured on one store (dev1, 01-11-2026) at 768px: sections with the store's width
+class and the products listing at 60, a section padded with `clamp(16px, 3.4vw, 48px)` at 26. The fix is
+`conversion-rules.md` → "The rule — ONE owner of the width per page".
 
 **⚠️ Guard every measurement with a width assertion first.** If the browser reports
 `window.innerWidth === 0` the pane is collapsed or hidden, and **every number derived from it is

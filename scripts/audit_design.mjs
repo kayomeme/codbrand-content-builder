@@ -32,6 +32,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const EXAMPLES_ROOT = path.resolve(HERE, "..", "examples");
 const CONTENT_FILE = "content.html";
 
+/* The line-length estimate, shared with validate_pattern.mjs (which warns on it): characters per line =
+   width / (font size * GLYPH_EM), reported above LINE_LENGTH_MAX. 80 is the limit WCAG 1.4.8 names for blocks of
+   text; until 01-11-2026 this was 90, and a store shipped 105-119-character lines with only the advisory to say so. */
+export const GLYPH_EM = 0.5;
+export const LINE_LENGTH_MAX = 80;
+
 const px = (v) => {
   const m = typeof v === "string" && v.match(/^(-?[\d.]+)px$/);
   return m ? parseFloat(m[1]) : null;
@@ -154,7 +160,7 @@ export function collect(markup) {
           const label = factor === 1
             ? anc.contentSize
             : `${Math.round(w)}px inside ${anc.contentSize}`;
-          const chars = Math.round(w / (size * 0.5));
+          const chars = Math.round(w / (size * GLYPH_EM));
           /* A long MEASURE is only a long LINE if there is enough text to fill it. A 30-character
              label in a 1400px container never wraps, so flagging it invents a problem — which is
              exactly what an earlier version of this check did on every header in the corpus. */
@@ -306,7 +312,9 @@ export function analyse(x) {
 
   /* --- line length -------------------------------------------------------------------
      Measured: ~145 characters per line, reduced to ~83 by narrowing the measure. Typographic
-     convention puts comfortable reading at 45-85.
+     convention puts comfortable body text at 45-75; WCAG 1.4.8 names 80 as the limit (LINE_LENGTH_MAX).
+     validate_pattern.mjs raises the same finding as a WARNING from these measures, so it leaves the
+     advisory it rides along with there.
 
      THIS IS AN ESTIMATE AND THE OUTPUT MUST SAY SO. Characters are derived as
      width / (fontSize * 0.5) — a generic average glyph width. This script is static: it cannot know
@@ -314,14 +322,14 @@ export function analyse(x) {
      bug. It runs OPTIMISTIC on condensed faces: a page set in Barlow Condensed measured ~4.7px per
      character at 14px against the 7px this assumes, and the audit reported ~120 characters where the
      real rendered longest line was 153. Under-reporting by a third is the failure mode to expect. */
-  const longLines = x.measures.filter((m) => m.chars > 90 && m.textLen > 90);
+  const longLines = x.measures.filter((m) => m.chars > LINE_LENGTH_MAX && m.textLen > LINE_LENGTH_MAX);
   const worst = longLines.sort((a, b) => b.chars - a.chars)[0];
   if (worst) {
     const n = longLines.length;
     add("high", "line-length",
       `~${worst.chars} characters per line ESTIMATED (${worst.size}px text at contentSize ${worst.width})` +
-        (n > 1 ? ` — ${n} paragraphs over 90` : ""),
-      "Comfortable reading is 45-85 characters. Narrow the measure or raise the body size. " +
+        (n > 1 ? ` — ${n} paragraphs over ${LINE_LENGTH_MAX}` : ""),
+      "Comfortable body text is 45-75 characters; WCAG 1.4.8 names 80 as the limit. Narrow the measure or raise the body size. " +
         "This is an ESTIMATE from a generic glyph width — a static script cannot know the rendered " +
         "face. It runs OPTIMISTIC on condensed faces (measured: ~120 estimated vs 153 real in " +
         "Barlow Condensed), so treat it as a floor and confirm in the browser.");
