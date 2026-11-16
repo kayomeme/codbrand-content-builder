@@ -32,6 +32,8 @@
  *   - headings descend one level at a time (warning); with --target, the content's h1 count fits where it lands
  *   - body text estimated over 80 characters per line (warning; the estimate shared with audit_design.mjs)
  *   - a wp:details padded vertically, which leaves most of its row unclickable (warning)
+ *   - no blockGap WordPress drops: a value holding "(" (clamp(), calc(), var()), \ & = } or /*, per side and per
+ *     device — the blocks would fall back to the default gap
  *
  * TWO MODES:
  *   node validate_pattern.mjs path/to/markup.html   validate ONE file — what an agent just made
@@ -635,6 +637,41 @@ function checkBlockGapReliance(text, markers, supported = false) {
   return [
     `blockGap used ${n}× — it emits NO CSS by itself and is discarded entirely unless the DESTINATION theme opts into spacing.blockGap (EITHER via theme.json OR via add_theme_support('appearance-tools') on a classic theme — so you must DETECT it, not infer it from the theme being classic). Confirm the destination supports it, or set explicit margins on the children instead.`,
   ];
+}
+
+/**
+ * A block gap WordPress throws away. wp_sanitize_block_gap_value() (WordPress 7.1, block-supports/layout.php) turns a
+ * gap value holding a backslash, "(", "&", "=", "}" or "/*" into null before any CSS is written: clamp(), calc() and
+ * var() included. It checks each side of the {top, left} form on its own, and the @mobile / @tablet gap too.
+ * Measured on WordPress 7.1.4 (15/16-11-2026): a root "clamp(48px, 6vw, 80px)" gap gave 24px at every width — the
+ * theme's default — on a store's Home that passed every check (reported from a live build); a per-side clamp gave the
+ * default for that side; a clamp in "@mobile" left the base gap on phones. AN ERROR: the value never renders,
+ * whatever the theme. Independent of --block-gap=supported. A preset ("var:preset|spacing|40") holds no "(" and
+ * passes here; checkPresetTokens has its own word on it.
+ */
+const GAP_DROPPED = /[\\(&=}]|\/\*/;
+function checkDroppedBlockGap(markers) {
+  const errs = [];
+  for (const m of markers) {
+    if (m.kind === "close" || !m.attrs?.style || typeof m.attrs.style !== "object") continue;
+    const style = m.attrs.style;
+    const places = [["", style]];
+    for (const [key, value] of Object.entries(style)) {
+      if (key.startsWith("@") && value && typeof value === "object") places.push([key, value]);
+    }
+    for (const [state, s] of places) {
+      const gap = s.spacing?.blockGap;
+      if (gap == null) continue;
+      const sides = typeof gap === "object" ? Object.entries(gap) : [["", gap]];
+      for (const [side, value] of sides) {
+        if (typeof value !== "string" || !GAP_DROPPED.test(value)) continue;
+        const where = `${state ? `"${state}" ` : ""}blockGap${side ? `.${side}` : ""}`;
+        const instead = state ? `the base gap stays on that device` : side ? `that side gets the default gap` : `its blocks get the theme's default gap (24px on a store measured 15-11-2026)`;
+        errs.push(`wp:${m.name} at offset ${m.position}: its ${where} "${value}" is dropped by WordPress — a gap holding "(" (clamp(), calc(), var()) or \\ & = } /* is removed before any CSS is written, so ${instead}, and no other check notices. Give the gap a fixed length ("48px"), with a phone value in "@mobile" if it should change there; or set the gap to "0" and put the fluid step on each child's margin-top (references/responsive.md → "clamp() for a spacing step").`);
+      }
+    }
+  }
+  return errs;
 }
 
 /** The blocks directly inside the container opened at markers[i] (depth 0 only). */
@@ -1296,6 +1333,7 @@ export function validateMarkup(markup, options = {}) {
   for (const issue of checkDeadLinks(markup)) errors.push(issue);
   for (const issue of checkEmojiPlaceholders(markup)) warnings.push(issue);
   for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null, options.blockGapSupported === true)) warnings.push(issue);
+  for (const issue of checkDroppedBlockGap(markers)) errors.push(issue);
   for (const issue of checkTypefaceSet(markup)) warnings.push(issue);
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
   for (const issue of checkPaintedParagraphPadding(markers)) warnings.push(issue);

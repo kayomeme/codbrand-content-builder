@@ -390,13 +390,33 @@ Contains inner blocks for the answer.
 ### `core/embed`
 For YouTube, Vimeo, Twitter, etc. Specify `"providerNameSlug":"youtube"` and `"url":"..."`.
 
+### A button's hover — a setting (WordPress 7.1)
+
+On `core/button` and `core/navigation-link` only, the `style` takes `":hover"`, `":focus"`, `":focus-visible"` and
+`":active"`, each holding the same keys as the block's own style. The merchant edits them in the block's sidebar: the
+⋮ on its card → Pseudo state → Hover ("Style changes apply to the Hover state."). Write only the comment JSON; the
+saved HTML keeps the resting look, and WordPress prints the hover as scoped CSS.
+
+```html
+<!-- wp:buttons -->
+<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"color":{"background":"#e11d48","text":"#ffffff"},":hover":{"color":{"background":"#111111","text":"#ffffff"}}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background wp-element-button" href="/shop" style="color:#ffffff;background-color:#e11d48">Shop now</a></div>
+<!-- /wp:button --></div>
+<!-- /wp:buttons -->
+```
+
+Measured on one store (dev1, WordPress 7.1.4, 16-11-2026): `rgb(225, 29, 72)` at rest, `rgb(17, 17, 17)` under the
+mouse; passes both validators. A keyboard user gets no hover: when the hover carries meaning, give `":focus-visible"`
+the same values. Any other block's hover is still handed-over CSS (below).
+
 ## What you CANNOT do with block settings (handed-over CSS — never a styled `wp:html`)
 
 These have no block setting. Build the static version with settings; the CSS is handed over with the
 level it belongs on and hooked by the block's `className` (`SKILL.md` step 6) — never a styled
 `wp:html`, whose content the merchant cannot change from the editor (`validate_pattern.mjs` errors on it):
 
-- Hover-only style changes (color shift on `:hover`).
+- Hover-only style changes (color shift on `:hover`) — except on a button or a navigation link ("A button's hover"
+  above).
 - CSS animations / transitions.
 - `:before`/`:after` pseudo-elements with content.
 - Sticky positioning beyond what a group's Sticky position setting and `wp:cover` provide.

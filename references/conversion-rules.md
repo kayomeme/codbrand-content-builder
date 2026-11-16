@@ -412,8 +412,9 @@ background does: the page's gutters inset the block, so what you get is a card y
 - **No wrapper, and the store's own blocks on the page too** (a listing, reviews — a CodBrand front page has
   no wrapper by default): your sections must start where those blocks start, at every width. They carry the
   store's width class — boxed and padded unless their design says otherwise (the listing's
-  `…_global_settings` doc names the setting) — and a padding of your own cannot follow it: block padding has
-  no media query, and no `clamp()` steps from a phone gutter to a desktop one. **Give each section the same
+  `…_global_settings` doc names the setting) — and a padding of your own cannot follow it: no `clamp()` steps
+  from a phone gutter to a desktop one, and a phone or tablet value (`"@mobile"` / `"@tablet"`) switches at
+  WordPress's sizes, not the store's. **Give each section the same
   class** through the store's per-block width — on a CodBrand storefront the group's or cover's Settings →
   Width mode, which writes that class (`cl-boxed-mode-padded`, `cl-full-width-padded` …) into its
   `className` with a constrained layout. A painted band keeps its background on an outer group and puts the
@@ -439,9 +440,11 @@ neighbour, **and neither is zero**. Set both on purpose.
 
 **`blockGap` DOES work on the codbrand theme** — its `theme.json` declares `"appearanceTools": true`,
 which switches on `spacing.blockGap`. But it also declares `"defaultSpacingSizes": false`, so a
-`var:preset|spacing|N` value resolves to nothing and vanishes silently. **Give `blockGap` a literal**
-(`"24px"`), never a preset token. Both halves are already flagged by the validator —
-`checkBlockGapReliance` and `checkPresetTokens`.
+`var:preset|spacing|N` value resolves to nothing and vanishes silently. **Give `blockGap` a literal
+length** (`"24px"`), never a preset token — and never `clamp()`, `calc()` or `var()`: WordPress drops any gap
+holding "(" and the blocks fall back to the theme's default (`responsive.md` → "`clamp()` for a spacing step that
+ramps"). All three are flagged by the validator — `checkBlockGapReliance`, `checkPresetTokens` and, as an error,
+`checkDroppedBlockGap`.
 
 ## ⚠️ Horizontal padding has a CEILING and a FLOOR — never use it to control text measure, never leave it at zero under a background
 

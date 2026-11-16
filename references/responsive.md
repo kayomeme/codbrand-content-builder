@@ -4,7 +4,7 @@ Native blocks already handle mobile. Use them correctly and the pattern is respo
 
 ## Core rules
 
-1. **No media queries.** Patterns must not include `<style>` tags. If a design needs explicit breakpoints, that's a theme.json or custom-CSS concern — not a pattern concern.
+1. **No media queries of your own.** Patterns must not include `<style>` tags. A value that changes on phones or tablets is the block's own `"@mobile"` / `"@tablet"` setting (WordPress 7.1, "A different value on phones or tablets" below), at WordPress's sizes; a breakpoint of the design's own is a theme.json or custom-CSS concern — not a pattern concern.
 2. **`wp:columns` auto-stacks** below 782px (default). Don't fight it. Don't set `isStackedOnMobile:false` unless the design specifically needs side-by-side at all sizes (rare).
 3. **`wp:group` with flex + `flexWrap:"wrap"`** lets children wrap to new rows when horizontal space is tight. Use this for logo rows, badge rows, button rows.
 4. **Padding: prefer a preset ONLY on a block theme.** `var:preset|spacing|XX` scales on mobile *when the theme defines it* — a block theme's `theme.json` typically does. On a **CLASSIC theme there are no presets**, so `var:preset|…` resolves to nothing and the padding silently vanishes; the plugin's own `codbrand` companion theme is classic. Discover which you are on first (`theme-tokens.md`), then use presets or literals accordingly. *(An earlier version of this rule said "prefer presets over fixed `px`" unconditionally — that is wrong on half of all destinations.)*
@@ -36,10 +36,47 @@ Use `wp:media-text`. `mediaPosition:"left"` or `"right"`. Below 600px it stacks,
 `isStackedOnMobile` is on — the default. Its text keeps an 8% inset on each side even when stacked
 (`block-supports.md` → `core/media-text`). *(Corrected 16-10-2026: this line said it stacks "above" 600px.)*
 
-### `clamp()` for a spacing step — the ONLY way to express a media query in block supports
+### A different value on phones or tablets — `"@mobile"` / `"@tablet"` (WordPress 7.1)
 
-Block supports have **no media queries**. When the source's only mobile change is a spacing step,
-`clamp()` is the answer, and it needs no custom CSS:
+A block's own style settings can take a second value for phones and one for tablets: the same `style` keys,
+nested under `"@mobile"` or `"@tablet"`. It is a block setting, so the merchant can change it: in the editor's
+device menu (top bar) → Tablet or Mobile with **Responsive styles** on, the sidebar says "Style changes apply to the
+Mobile viewport." and shows these values — and the editor writes exactly this shape.
+
+```html
+<!-- wp:group {"style":{"spacing":{"blockGap":"80px"},"@mobile":{"spacing":{"blockGap":"48px"}}},"layout":{"type":"default"}} -->
+<div class="wp-block-group"><!-- wp:paragraph -->
+<p>First</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Second</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"style":{"color":{"background":"#ede9fe"},"spacing":{"padding":{"top":"12px","right":"48px","bottom":"12px","left":"48px"}},"@tablet":{"spacing":{"padding":{"left":"32px","right":"32px"}}},"@mobile":{"spacing":{"padding":{"left":"20px","right":"20px"}}}},"layout":{"type":"default"}} -->
+<div class="wp-block-group has-background" style="background-color:#ede9fe;padding-top:12px;padding-right:48px;padding-bottom:12px;padding-left:48px"><!-- wp:paragraph -->
+<p>Padded 48px, 32px on tablets, 20px on phones</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+```
+
+- **Write only the comment JSON.** The saved HTML keeps the base value; WordPress prints the phone and tablet values as
+  scoped CSS when it renders the page. Set only what changes: a side left out keeps the base value.
+- **The sizes are WordPress's** — phone up to 480px, tablet 481–782px, unless the theme sets its own
+  (`settings.viewport`) — the same as "Phones only, or not on phones" below, not a store's own phone width (767px on a
+  CodBrand storefront, whose 481–767px is WordPress's tablet).
+- **Prefer it to `clamp()` when the source switches at a breakpoint** — it switches too; a `clamp()` ramps (next
+  section). Measured on one store (dev1, WordPress 7.1.4, 16-11-2026) at 390 / 600 / 768 / 1423px: the gap above
+  48 / 80 / 80 / 80, the padding 20 / 32 / 32 / 48, a margin 64 with a phone value of 24 → 24 / 64 / 64 / 64. All pass
+  both validators.
+- **A gap must still be a fixed length here** — a `clamp()` in `"@mobile"` is dropped like any other (below).
+- A button's or a navigation link's hover is a setting of the same kind: `block-supports.md` → "A button's hover".
+
+### `clamp()` for a spacing step that ramps — padding and margin, never the block gap
+
+A media query switches; `clamp()` ramps between two sizes, with no setting per device. When the source's only mobile
+change is a spacing step and a ramp is acceptable, `clamp()` needs no custom CSS:
 
 ```json
 "padding":{"top":"0","right":"clamp(20px, 3vw, 40px)","bottom":"clamp(44px, 5vw, 60px)","left":"clamp(20px, 3vw, 40px)"}
@@ -47,6 +84,31 @@ Block supports have **no media queries**. When the source's only mobile change i
 
 For a source with `padding: 0 40px 60px` and `0 20px 44px` under `@media (max-width:700px)`, this hits
 **both authored states exactly** — measured 20/44 at 375px and 40/60 at 1440px.
+
+⚠️ **Never in a `blockGap`.** WordPress drops a gap value holding "(" — `clamp()`, `calc()`, `var()`, and also
+`\ & = } /*` — before it writes any CSS (WordPress 7.1, `wp_sanitize_block_gap_value()`), on each side of a
+`{"top","left"}` gap and in `"@mobile"` / `"@tablet"` too. Nothing else notices: on one store (15-11-2026) a Home whose
+root gap was `clamp(48px, 6vw, 80px)` passed every check and rendered every section 24px apart, the theme's default;
+(a) now errors on it. For a gap that changes, use a fixed gap with a phone value (above), or set the gap to `"0"` and
+put the ramp on each following child's `margin-top`:
+
+```html
+<!-- wp:group {"style":{"spacing":{"blockGap":"0"}},"layout":{"type":"default"}} -->
+<div class="wp-block-group"><!-- wp:group {"layout":{"type":"default"}} -->
+<div class="wp-block-group"><!-- wp:paragraph -->
+<p>First section</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group -->
+
+<!-- wp:group {"style":{"spacing":{"margin":{"top":"clamp(40px, 5.56vw, 80px)"}}},"layout":{"type":"default"}} -->
+<div class="wp-block-group" style="margin-top:clamp(40px, 5.56vw, 80px)"><!-- wp:paragraph -->
+<p>Next section</p>
+<!-- /wp:paragraph --></div>
+<!-- /wp:group --></div>
+<!-- /wp:group -->
+```
+
+Measured on dev1 (15-11-2026): 40 / 40 / 79px at 390 / 600 / 1408px.
 
 ⚠️ **It matches at the ENDPOINTS and RAMPS between them — it does not reproduce the media query.**
 A media query switches at one width; two `clamp()`s cross over at their own widths, and not together:
@@ -254,14 +316,20 @@ caches), and a tablet can get either output, depending on what its browser says 
 Where your sections sit next to the store's own blocks (a listing, reviews), their left edges must match at
 every width — no markup check can see it, because the store's blocks are drawn only when the page renders.
 On the published page, at 390, 768 and desktop width, run this in the browser: it lists each top-level
-block and the left edge of its content (inside the store's width class when it has one).
+block and the left edge of its content (inside the store's width class when it has one), between the left edge of
+the site's header and of its footer — the leftmost thing each shows (a logo, a text, an icon), with what it is.
 
 ```js
-(() => { let box = document.querySelector('.cod-brand')?.parentElement; if (!box) return 'no .cod-brand block'; while (box.children.length === 1) box = box.firstElementChild; const W = '[class*="cl-boxed-mode"], [class*="cl-full-width"]'; return [...box.children].map((el) => { const t = el.matches(W) ? el : el.querySelector(W) || el; const r = t.getBoundingClientRect(), cs = getComputedStyle(t); return r.width ? `${String(el.className).split(' ').slice(0, 2).join(' ')} → ${Math.round(r.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth))}` : null; }).filter(Boolean); })()
+(() => { let box = document.querySelector('.cod-brand')?.parentElement; if (!box) return 'no .cod-brand block'; while (box.children.length === 1) box = box.firstElementChild; const W = '[class*="cl-boxed-mode"], [class*="cl-full-width"]'; const rows = [...box.children].map((el) => { const t = el.matches(W) ? el : el.querySelector(W) || el; const r = t.getBoundingClientRect(), cs = getComputedStyle(t); return r.width ? `${String(el.className).split(' ').slice(0, 2).join(' ')} → ${Math.round(r.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth))}` : null; }).filter(Boolean); const land = (s) => [...document.querySelectorAll(s)].find((e) => !e.parentElement.closest('main, article, aside, section')); const first = (root) => { let x = Infinity, by = ''; for (const n of [root, ...root.querySelectorAll('*')]) { if (n.checkVisibility && !n.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue; const rs = /^(IMG|svg|INPUT|SELECT|VIDEO|CANVAS)$/.test(n.tagName) ? [n.getBoundingClientRect()] : [...n.childNodes].filter((c) => c.nodeType === 3 && c.textContent.trim()).map((c) => { const g = document.createRange(); g.selectNodeContents(c); return g.getBoundingClientRect(); }); for (const r of rs) if (r.width > 1 && r.height > 1 && r.left >= 0 && r.left < innerWidth && r.left < x) { x = r.left; by = n.tagName.toLowerCase() + ' ' + String(n.className?.baseVal ?? n.className).split(' ')[0]; } } return isFinite(x) ? `${Math.round(x)} (${by.trim()})` : 'nothing visible'; }; const h = land('header, [role="banner"]'), f = land('footer, [role="contentinfo"]'); return [`header → ${h ? first(h) : 'none found'}`, ...rows, `footer → ${f ? first(f) : 'none found'}`]; })()
 ```
 
-Sections meant to share the page's text column should report the same number as the store's blocks; full-bleed
-rows report 0 by design. Measured on one store (dev1, 01-11-2026) at 768px: sections with the store's width
+Sections meant to share the page's text column should report the same number as the store's blocks **and as the
+header and footer**; full-bleed rows report 0 by design. The header and footer are measured by what they show, not by
+their width class: a footer's width element can start at 0 while its first column's text starts at 60 (dev1,
+15-11-2026). A text edge reads about 1px inside its box (the letter's own side space), so 15 next to 16 is in line.
+Measured with this version (16-11-2026): one store's test page with unpadded sections printed header 60, sections 0,
+footer 60 at desktop — the mismatch the earlier version, without the header and footer, never showed; a store's Home
+built to one gutter printed 48 / 48 / 47 (desktop and 768px) and 16 / 16 / 15 (390px). Measured on one store (dev1, 01-11-2026) at 768px: sections with the store's width
 class and the products listing at 60, a section padded with `clamp(16px, 3.4vw, 48px)` at 26. The fix is
 `conversion-rules.md` → "The rule — ONE owner of the width per page".
 

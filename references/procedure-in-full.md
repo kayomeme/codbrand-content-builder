@@ -23,7 +23,7 @@ route 2 and rule numbers are the same in both. Where this file says "below" or "
 - **Block settings first — the merchant must be able to change what you build.** Every colour, size,
   spacing, border, typeface and width is a setting of the block it belongs to (block-support JSON), so
   whoever opens the page or custom block in the block editor can change it from the sidebar. Only what
-  no block setting can express — a hover, an animation, a `::before`, a media query — is custom CSS or
+  no block setting can express — a hover (not a button's), an animation, a `::before`, a breakpoint of your own — is custom CSS or
   JavaScript, and it never goes INTO the content: you hand it over with the level it belongs on (step
   6), and the content carries only a class for it to find, set as the block's `className` (the
   editor's "Additional CSS class(es)"). So: **no hand-written `style=""`, no `<style>`, no `<script>`**
@@ -171,13 +171,13 @@ Read:
 - **Client-safe delivery (opt-in):** when the user says a pattern is final/for a client, offer `templateLock:"contentOnly"` on the root group — clients then edit only text/media, layout untouchable. Not default during iteration. See `references/client-editing.md`.
 - Use native block supports for spacing, typography, color, border. The inline `style=""` MUST contain exactly the CSS properties that correspond to JSON `style.*` keys — no more, no less.
 - Use theme presets (`var:preset|...`) for theme-related values; literal CSS for one-offs.
-- Responsive: lean on `core/columns` (auto-stacks) and `wp:group` flex with `flexWrap:"wrap"`. **No media queries.**
+- Responsive: lean on `core/columns` (auto-stacks), `wp:group` flex with `flexWrap:"wrap"`, and a block's own phone and tablet values — `"@mobile"` / `"@tablet"` in its `style`, which the merchant edits in the editor's Responsive styles mode (WordPress 7.1; sizes, markup and measurements in `references/responsive.md` → "A different value on phones or tablets"). **No media queries of your own.** A `blockGap` is a fixed length, never `clamp()`, `calc()` or `var()`: WordPress drops a gap holding "(" and the blocks fall back to the theme's default gap, past every other check ((a) errors on it; the ramp goes on the children's margins — `references/responsive.md` → "`clamp()` for a spacing step that ramps").
 - **A block for phones only, or not on phones**, is WordPress's own per-device setting —
   `"metadata":{"blockVisibility":{"viewport":{"mobile":false}}}` hides a block on phones, `{"tablet":false,"desktop":false}`
   shows it on phones only — the same setting the merchant ticks in the block editor, so they can change it. Never
   two copies switched by CSS of your own. WordPress 7.0+, with sizes, limits and the canonical markup in
   `references/responsive.md` → "Phones only, or not on phones".
-- No `<script>`, no `<style>`, no hand-written `style=""` — inside a `wp:html` included (step 5 (a) fails all three). What no block setting can express — interactivity, a hover, an animation — is handed over with the level it belongs on (step 6).
+- No `<script>`, no `<style>`, no hand-written `style=""` — inside a `wp:html` included (step 5 (a) fails all three). What no block setting can express — interactivity, a hover (not a button's or a navigation link's), an animation — is handed over with the level it belongs on (step 6).
 - **A container whose rows draw their own dividers or carry their own padding sets its Block spacing on purpose** — `blockGap` `"0"` when the rows' padding and dividers ARE the spacing. A container that sets none does not get 0: on a theme with block-gap support every row after the first takes WordPress's default gap (measured on one store: 24px under each divider). Recipe: `references/snippets.md` #13; (a) warns on the divider case.
 
 #### Embedding a plugin (`cl/…`) block
@@ -314,7 +314,7 @@ confirm that on every file.
 With `--target` — the resource you chose in step 2, or `pages-with-title` for a page whose title the theme
 shows — it also checks the content's `h1`: one on a page (the hero's), none under a product or in a custom
 block (`references/conversion-rules.md` → Accessibility rules). Always pass it when you know the target.
-Expect `errorCount: 0`. Checks conventions WordPress cannot know about: `cod-brand` marker, button `url` + `has-custom-font-size`, dead `#fragment` links, `wp:separator` alpha class, `wp:cover` dim-class rules, HTML outside any block (WordPress would silently make it a Classic block), inline `style=""` that block supports never write, anything hand-styled inside a `wp:html`, `<style>` and `<script>` elements, emoji documentation — and warns on an icon svg with a fixed size or colour, on divider rows in a container with no Block spacing, on a heading that skips a level, on body text estimated over 80 characters per line, and on a `wp:details` padded at the top or bottom (with `--target`, a missing or extra `h1` is an error). **It is the only check that looks inside a `wp:html`:** WordPress's own check (c) accepts any HTML there, and the structural check (b) does not look inside one.
+Expect `errorCount: 0`. Checks conventions WordPress cannot know about: `cod-brand` marker, button `url` + `has-custom-font-size`, dead `#fragment` links, `wp:separator` alpha class, `wp:cover` dim-class rules, HTML outside any block (WordPress would silently make it a Classic block), inline `style=""` that block supports never write, anything hand-styled inside a `wp:html`, `<style>` and `<script>` elements, emoji documentation, a `blockGap` WordPress drops (one holding "(": `clamp()`, `calc()`, `var()`) — and warns on an icon svg with a fixed size or colour, on divider rows in a container with no Block spacing, on a heading that skips a level, on body text estimated over 80 characters per line, and on a `wp:details` padded at the top or bottom (with `--target`, a missing or extra `h1` is an error). **It is the only check that looks inside a `wp:html`:** WordPress's own check (c) accepts any HTML there, and the structural check (b) does not look inside one.
 
 Run it with NO argument to validate the teaching corpus in `examples/` instead — useful after editing an example, never part of publishing.
 
@@ -517,7 +517,7 @@ Before declaring done, confirm ALL of:
   check did not run — never report it as passed.
 
 ## Failure modes & mitigations
-- **Hover effects / CSS animations** — no block setting expresses them. Build the static version with settings, and hand the hover or animation CSS over with its level and the `className` it hooks (step 6).
+- **Hover effects / CSS animations** — a button's or a navigation link's hover is a block setting on WordPress 7.1 (`style[":hover"]`, which the merchant edits through the block card's Pseudo state menu: `references/block-supports.md` → "A button's hover"). For any other block no setting expresses them: build the static version with settings, and hand the hover or animation CSS over with its level and the `className` it hooks (step 6).
 - **A face the design needs is not registered on the store** — do NOT reach for an `@import` in page
   CSS, and do NOT invent a literal font stack. **The plugin owns fonts**: register the face through
   the font manager and reference it by its `css_var`. See `references/theme-tokens.md` → "Fonts come
