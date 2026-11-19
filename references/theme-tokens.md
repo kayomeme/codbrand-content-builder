@@ -67,6 +67,13 @@ ready to paste — except inside block-comment JSON, where WordPress writes the 
 
 In the block's HTML it stays as the door gives it: `style="font-family:var(--cl-font1)"`.
 
+**A store typography preset can set the face too.** Text whose block carries one of the store's typography presets — its
+`cl-preset-N` class in the block's `className`; on a group it reaches every block inside — takes the face that preset
+sets, and the merchant restyles every block using it in one place. A typography preset may set only a size or a colour,
+though: read it (`GET design_controls/presets/{id}`, its `css_default`) and confirm it holds `font-family` before
+relying on it. `validate_pattern.mjs` counts the class as a font; it cannot see inside the preset. Seen on one store
+(19-11-2026): two custom blocks styled only by a body-text preset that sets `font-family`.
+
 Useful fields on a `list` (verified against the door's own schema):
 
 | Field | Meaning |

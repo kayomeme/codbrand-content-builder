@@ -760,11 +760,20 @@ function checkDividerRowsGap(markers) {
  * No typeface anywhere. A file that sets no fontFamily inherits whatever the theme defaults to —
  * very often Inter, the most-defaulted face on the web — and reads as "unstyled" however careful
  * the layout is. Detectable in one line; was missed by a human review pass.
+ *
+ * A store's typography preset class (cl-preset-N in a block's className) counts as a font too: its CSS
+ * may set font-family, inherited by everything inside the block. Reported from a live store (19-11-2026):
+ * two custom blocks whose every paragraph carried a typography preset that sets font-family were warned
+ * as having no font. Read from the parsed blocks, so the words "cl-preset-5" in a paragraph's text do not
+ * count. The validator cannot see what a preset holds (a typography preset may set only size or colour):
+ * references/theme-tokens.md says how to confirm it sets the face.
  */
-function checkTypefaceSet(text) {
+const STORE_PRESET_CLASS = /(^|\s)cl-preset-\d+(\s|$)/;
+function checkTypefaceSet(text, markers = []) {
   if (/"fontFamily"/.test(text)) return [];
+  if (markers.some((m) => m.kind !== "close" && STORE_PRESET_CLASS.test(String(m.attrs?.className ?? "")))) return [];
   return [
-    `no fontFamily set anywhere in this file — every character will render in the destination theme's default face. Set style.typography.fontFamily (or a named font slug) on at least the headings, or confirm the theme's default is genuinely the design intent.`,
+    `no fontFamily set anywhere in this file — every character will render in the destination theme's default face. Set style.typography.fontFamily (or a named font slug) on at least the headings, or give the text one of the store's typography presets that sets the face (its cl-preset-N class in the block's className — references/theme-tokens.md), or confirm the theme's default is genuinely the design intent.`,
   ];
 }
 
@@ -1334,7 +1343,7 @@ export function validateMarkup(markup, options = {}) {
   for (const issue of checkEmojiPlaceholders(markup)) warnings.push(issue);
   for (const issue of checkBlockGapReliance(markup, balance.ok ? markers : null, options.blockGapSupported === true)) warnings.push(issue);
   for (const issue of checkDroppedBlockGap(markers)) errors.push(issue);
-  for (const issue of checkTypefaceSet(markup)) warnings.push(issue);
+  for (const issue of checkTypefaceSet(markup, markers)) warnings.push(issue);
   for (const issue of checkEmptyColumns(markers)) warnings.push(issue);
   for (const issue of checkPaintedParagraphPadding(markers)) warnings.push(issue);
   for (const issue of checkPresetTokens(markup)) warnings.push(issue);
