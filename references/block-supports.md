@@ -59,8 +59,8 @@ until 05-09-2026 — corrected there.)
 **Rule 3 — WordPress writes `color` then `width`, per side, in T→R→B→L order** (house style — validation ignores property order, see the top of this file):
 
 ```html
-<!-- wp:group {"style":{"border":{"top":{"color":"#27ae60","width":"4px"},"right":{"color":"#2a2a2a","width":"1px"},"bottom":{"color":"#2a2a2a","width":"1px"},"left":{"color":"#2a2a2a","width":"1px"}},"color":{"background":"#1c1c1c"},"spacing":{"padding":{"top":"32px","right":"26px","bottom":"32px","left":"26px"}}},"layout":{"type":"default"}} -->
-<div class="wp-block-group has-background" style="border-top-color:#27ae60;border-top-width:4px;border-right-color:#2a2a2a;border-right-width:1px;border-bottom-color:#2a2a2a;border-bottom-width:1px;border-left-color:#2a2a2a;border-left-width:1px;background-color:#1c1c1c;padding-top:32px;padding-right:26px;padding-bottom:32px;padding-left:26px">
+<!-- wp:group {"style":{"border":{"top":{"color":"#27ae60","width":"4px"},"right":{"color":"#2a2a2a","width":"1px"},"bottom":{"color":"#2a2a2a","width":"1px"},"left":{"color":"#2a2a2a","width":"1px"}},"color":{"background":"#1c1c1c"},"spacing":{"padding":{"top":"32px","right":"24px","bottom":"32px","left":"24px"}}},"layout":{"type":"default"}} -->
+<div class="wp-block-group has-background" style="border-top-color:#27ae60;border-top-width:4px;border-right-color:#2a2a2a;border-right-width:1px;border-bottom-color:#2a2a2a;border-bottom-width:1px;border-left-color:#2a2a2a;border-left-width:1px;background-color:#1c1c1c;padding-top:32px;padding-right:24px;padding-bottom:32px;padding-left:24px">
 ```
 
 **Full inline-style property order WordPress writes** (all supports present, confirmed on paragraph/heading/details — the order to copy, not a validity rule):
@@ -209,8 +209,8 @@ So if you want a dimmer overlay, change `dimRatio` to something other than 50 (e
 Correct full markup for a 100%-width dark button with custom typography:
 ```html
 <!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">Purchase Now</a></div>
+<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"8px","bottom":"8px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:8px;padding-right:0;padding-bottom:8px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">Purchase Now</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons -->
 ```
@@ -236,7 +236,7 @@ When modifying inline HTML attributes (e.g. removing a `style="..."` from an `<a
 **The inline `style=""` AND every HTML attribute must correspond EXACTLY to keys in the block JSON — no more, no less.** WP does NOT auto-inject anything. If a property is not in the JSON, it must NOT appear in the rendered HTML. Adding "harmless" defaults like `font-style:normal;` or `target="_blank"` without their JSON counterparts causes parser failures.
 
 When you write a styled block, walk the JSON keys directly:
-- `style.spacing.padding.top:"9px"` → `padding-top:9px`
+- `style.spacing.padding.top:"8px"` → `padding-top:8px`
 - `style.color.background:"#111"` → `background-color:#111`
 - `style.typography.fontSize:"12px"` → `font-size:12px`
 - `linkTarget:"_blank"` → `target="_blank"` on the link

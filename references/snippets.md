@@ -10,14 +10,14 @@
 ## 1. Section root (every pattern starts with this)
 
 ```html
-<!-- wp:group {"metadata":{"name":"SECTION NAME"},"align":"full","className":"cod-brand","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"60px","bottom":"60px","left":"40px","right":"40px"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group cod-brand alignfull has-background" style="background-color:#ffffff;padding-top:60px;padding-right:40px;padding-bottom:60px;padding-left:40px">
+<!-- wp:group {"metadata":{"name":"SECTION NAME"},"align":"full","className":"cod-brand","style":{"color":{"background":"#ffffff"},"spacing":{"padding":{"top":"64px","bottom":"64px","left":"40px","right":"40px"}},"@tablet":{"spacing":{"padding":{"top":"48px","bottom":"48px","left":"32px","right":"32px"}}},"@mobile":{"spacing":{"padding":{"top":"48px","bottom":"48px","left":"32px","right":"32px"}}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group cod-brand alignfull has-background" style="background-color:#ffffff;padding-top:64px;padding-right:40px;padding-bottom:64px;padding-left:40px">
 	<!-- inner blocks -->
 </div>
 <!-- /wp:group -->
 ```
 
-Slots: section name, background color, paddings. `cod-brand` and `metadata.name` are mandatory (validator enforces cod-brand).
+Slots: section name, background color, paddings — the store's steps (`theme-tokens.md` → "Spacing comes from the store's Spacing designs"): the section's step on computers as the value, its phone step in `"@mobile"` and `"@tablet"` (64 / 48px and 40 / 32px here, the shipped steps and the phone rule). `cod-brand` and `metadata.name` are mandatory (validator enforces cod-brand).
 
 ⚠️ **This snippet sets NO `contentSize`, because it cannot know your destination** — the same reasoning as `blockGap` below, and the same fix: **detect first.**
 
@@ -37,9 +37,9 @@ Hardcoding a width here freezes the section at author time. The merchant then ch
 gutter you have, and without them text touches the viewport edge on a phone. But on a CodBrand
 storefront they are both **additive** and **removable**:
 
-- **Additive** — the page's own width mode already insets the content. Measured on a live store:
-  80px desktop, 24px mobile (see `conversion-rules.md` → "`align:\"full\"` does NOT mean
-  full-bleed"). Your 40px lands on top of that, so the section sits ~120px in, not 40px.
+- **Additive** — the page's own width mode already insets the content by the store's page edge. Measured on a live
+  store: 80px desktop, 24px mobile (that store's then; read the store's own — `conversion-rules.md` → "`align:\"full\"`
+  does NOT mean full-bleed"). Your 40px lands on top of that, so the section sat ~120px in, not 40px.
 - **Removable** — since plugin **v1.2.710** a merchant can set a width mode on an individual BLOCK
   (block inspector → Settings → Width mode). Doing so **deletes that block's left/right padding and
   hides the control**, because the store's gutter then owns the horizontal box. Whatever you authored
@@ -58,8 +58,8 @@ padding OFF the section ROOT and let the store's gutter supply it; put insets on
 ```html
 <!-- wp:group {"metadata":{"name":"Badge"},"layout":{"type":"flex","justifyContent":"center"}} -->
 <div class="wp-block-group">
-	<!-- wp:group {"style":{"color":{"background":"#f5e0e5"},"border":{"radius":"9999px"},"spacing":{"padding":{"top":"10px","right":"24px","bottom":"10px","left":"24px"}}},"layout":{"type":"constrained"}} -->
-	<div class="wp-block-group has-background" style="border-radius:9999px;background-color:#f5e0e5;padding-top:10px;padding-right:24px;padding-bottom:10px;padding-left:24px">
+	<!-- wp:group {"style":{"color":{"background":"#f5e0e5"},"border":{"radius":"9999px"},"spacing":{"padding":{"top":"12px","right":"24px","bottom":"12px","left":"24px"}}},"layout":{"type":"constrained"}} -->
+	<div class="wp-block-group has-background" style="border-radius:9999px;background-color:#f5e0e5;padding-top:12px;padding-right:24px;padding-bottom:12px;padding-left:24px">
 		<!-- wp:paragraph {"style":{"color":{"text":"#c41e3a"},"typography":{"fontSize":"13px","fontWeight":"700"},"spacing":{"margin":{"top":"0","bottom":"0"}}}} -->
 		<p class="has-text-color" style="color:#c41e3a;margin-top:0;margin-bottom:0;font-size:13px;font-weight:700">BADGE TEXT</p>
 		<!-- /wp:paragraph -->
@@ -88,8 +88,8 @@ Inline order: `color` → margins → `font-size` → `font-weight` (heading) / 
 ## 4. Card container (repeated item with its own background)
 
 ```html
-<!-- wp:group {"metadata":{"name":"CARD NAME"},"style":{"color":{"background":"#f6f7f9"},"border":{"radius":"16px"},"spacing":{"padding":{"top":"28px","right":"20px","bottom":"24px","left":"20px"}}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"center"}} -->
-<div class="wp-block-group has-background" style="border-radius:16px;background-color:#f6f7f9;padding-top:28px;padding-right:20px;padding-bottom:24px;padding-left:20px">
+<!-- wp:group {"metadata":{"name":"CARD NAME"},"style":{"color":{"background":"#f6f7f9"},"border":{"radius":"16px"},"spacing":{"padding":{"top":"32px","right":"20px","bottom":"24px","left":"20px"}}},"layout":{"type":"flex","orientation":"vertical","justifyContent":"center"}} -->
+<div class="wp-block-group has-background" style="border-radius:16px;background-color:#f6f7f9;padding-top:32px;padding-right:20px;padding-bottom:24px;padding-left:20px">
 	<!-- inner blocks -->
 </div>
 <!-- /wp:group -->
@@ -106,8 +106,8 @@ icon's colour and its **font size** is the icon's size, so the merchant recolour
 the block editor. See `SKILL.md` → "Icons".
 
 ```html
-<!-- wp:group {"style":{"color":{"background":"#d63d3d","text":"#ffffff"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"22px","right":"22px","bottom":"22px","left":"22px"}},"typography":{"fontSize":"36px"}},"layout":{"type":"flex","justifyContent":"center"},"metadata":{"name":"Icon tile"}} -->
-<div class="wp-block-group has-text-color has-background" style="border-radius:14px;color:#ffffff;background-color:#d63d3d;padding-top:22px;padding-right:22px;padding-bottom:22px;padding-left:22px;font-size:36px"><!-- wp:html -->
+<!-- wp:group {"style":{"color":{"background":"#d63d3d","text":"#ffffff"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"24px","right":"24px","bottom":"24px","left":"24px"}},"typography":{"fontSize":"36px"}},"layout":{"type":"flex","justifyContent":"center"},"metadata":{"name":"Icon tile"}} -->
+<div class="wp-block-group has-text-color has-background" style="border-radius:14px;color:#ffffff;background-color:#d63d3d;padding-top:24px;padding-right:24px;padding-bottom:24px;padding-left:24px;font-size:36px"><!-- wp:html -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
 <!-- /wp:html --></div>
 <!-- /wp:group -->
@@ -138,8 +138,8 @@ change neither the colour nor the size from the editor.)*
 ## 6. Custom-color separator + footer line (card footer)
 
 ```html
-<!-- wp:separator {"style":{"color":{"background":"#232f4a"},"spacing":{"margin":{"top":"10px","bottom":"6px"}}}} -->
-<hr class="wp-block-separator has-text-color has-background has-alpha-channel-opacity" style="background-color:#232f4a;color:#232f4a;margin-top:10px;margin-bottom:6px"/>
+<!-- wp:separator {"style":{"color":{"background":"#232f4a"},"spacing":{"margin":{"top":"12px","bottom":"6px"}}}} -->
+<hr class="wp-block-separator has-text-color has-background has-alpha-channel-opacity" style="background-color:#232f4a;color:#232f4a;margin-top:12px;margin-bottom:6px"/>
 <!-- /wp:separator -->
 
 <!-- wp:paragraph {"align":"right","style":{"color":{"text":"#8b93a7"},"typography":{"fontSize":"14px"},"spacing":{"margin":{"top":"0","bottom":"0"}}}} -->
@@ -179,8 +179,8 @@ Slots: image URL (twice — JSON and `src` must match), alt (twice too — `"alt
 
 ```html
 <!-- wp:buttons -->
-<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"9px","bottom":"9px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
-<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:9px;padding-right:0;padding-bottom:9px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">BUTTON TEXT</a></div>
+<div class="wp-block-buttons"><!-- wp:button {"url":"/shop","style":{"typography":{"fontSize":"12px","fontWeight":"600","textTransform":"uppercase","letterSpacing":"0.08em"},"color":{"background":"#111111","text":"#ffffff"},"border":{"radius":"0px"},"spacing":{"padding":{"top":"8px","bottom":"8px","left":"0","right":"0"}},"dimensions":{"width":"100%"}}} -->
+<div class="wp-block-button"><a class="wp-block-button__link has-text-color has-background has-custom-font-size wp-element-button" href="/shop" style="border-radius:0px;color:#ffffff;background-color:#111111;padding-top:8px;padding-right:0;padding-bottom:8px;padding-left:0;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase">BUTTON TEXT</a></div>
 <!-- /wp:button --></div>
 <!-- /wp:buttons -->
 ```
@@ -235,8 +235,8 @@ So the row's padding and its marker are CSS handed over with its level (`SKILL.m
 ```html
 <!-- wp:group {"metadata":{"name":"FAQ"},"className":"cb-faq","layout":{"type":"constrained"}} -->
 <div class="wp-block-group cb-faq"><!-- wp:details {"summary":"Combien de temps dure la livraison ?","style":{"border":{"radius":"14px","width":"1px","color":"#e5e7eb"},"spacing":{"margin":{"bottom":"12px"}},"typography":{"fontSize":"17px","fontWeight":"600"},"color":{"background":"#ffffff"}}} -->
-<details class="wp-block-details has-border-color has-background" style="border-color:#e5e7eb;border-width:1px;border-radius:14px;background-color:#ffffff;margin-bottom:12px;font-size:17px;font-weight:600"><summary>Combien de temps dure la livraison ?</summary><!-- wp:paragraph {"style":{"typography":{"fontSize":"16px","fontWeight":"400","lineHeight":"1.7"},"color":{"text":"#555555"},"spacing":{"margin":{"top":"0","bottom":"0"},"padding":{"top":"0","right":"20px","bottom":"18px","left":"20px"}}}} -->
-<p class="has-text-color" style="color:#555555;margin-top:0;margin-bottom:0;padding-top:0;padding-right:20px;padding-bottom:18px;padding-left:20px;font-size:16px;font-weight:400;line-height:1.7">Entre 24 et 72 heures selon la ville.</p>
+<details class="wp-block-details has-border-color has-background" style="border-color:#e5e7eb;border-width:1px;border-radius:14px;background-color:#ffffff;margin-bottom:12px;font-size:17px;font-weight:600"><summary>Combien de temps dure la livraison ?</summary><!-- wp:paragraph {"style":{"typography":{"fontSize":"16px","fontWeight":"400","lineHeight":"1.7"},"color":{"text":"#555555"},"spacing":{"margin":{"top":"0","bottom":"0"},"padding":{"top":"0","right":"20px","bottom":"20px","left":"20px"}}}} -->
+<p class="has-text-color" style="color:#555555;margin-top:0;margin-bottom:0;padding-top:0;padding-right:20px;padding-bottom:20px;padding-left:20px;font-size:16px;font-weight:400;line-height:1.7">Entre 24 et 72 heures selon la ville.</p>
 <!-- /wp:paragraph --></details>
 <!-- /wp:details --></div>
 <!-- /wp:group -->
@@ -251,7 +251,7 @@ The CSS to hand over — on the page with the FAQ, or the store when several pag
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
+  padding: 20px 20px;
   cursor: pointer;
 }
 .cb-faq .wp-block-details > summary::-webkit-details-marker {
@@ -299,8 +299,8 @@ left edge instead, and shrinks. Measured on a live store: **0px indent** from th
 
 ```html
 <!-- wp:group {"metadata":{"name":"FAQ"},"className":"cod-brand","style":{"typography":{"fontFamily":"var(\u002d\u002dcl-font1)"}},"layout":{"type":"constrained","contentSize":"1100px"}} -->
-<div class="wp-block-group cod-brand" style="font-family:var(--cl-font1)"><!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"22px","fontWeight":"600"},"spacing":{"margin":{"top":"0","bottom":"10px"}}}} -->
-<h3 class="wp-block-heading" style="margin-top:0;margin-bottom:10px;font-size:22px;font-weight:600">Combien de temps dure la livraison ?</h3>
+<div class="wp-block-group cod-brand" style="font-family:var(--cl-font1)"><!-- wp:heading {"level":3,"style":{"typography":{"fontSize":"22px","fontWeight":"600"},"spacing":{"margin":{"top":"0","bottom":"12px"}}}} -->
+<h3 class="wp-block-heading" style="margin-top:0;margin-bottom:12px;font-size:22px;font-weight:600">Combien de temps dure la livraison ?</h3>
 <!-- /wp:heading -->
 
 <!-- wp:columns -->
@@ -356,8 +356,8 @@ divider, and the paragraphs carry their own colour and size.
 
 ```html
 <!-- wp:group {"className":"cod-brand","style":{"color":{"background":"#f3f1ec","text":"#b4232a"},"border":{"radius":"14px"},"spacing":{"padding":{"top":"4px","bottom":"4px","left":"16px","right":"16px"},"blockGap":"0"},"typography":{"fontSize":"22px","fontFamily":"var(\u002d\u002dcl-font1)"}},"layout":{"type":"default"},"metadata":{"name":"LIST NAME"}} -->
-<div class="wp-block-group cod-brand has-text-color has-background" style="border-radius:14px;color:#b4232a;background-color:#f3f1ec;padding-top:4px;padding-right:16px;padding-bottom:4px;padding-left:16px;font-family:var(--cl-font1);font-size:22px"><!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
-<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<div class="wp-block-group cod-brand has-text-color has-background" style="border-radius:14px;color:#b4232a;background-color:#f3f1ec;padding-top:4px;padding-right:16px;padding-bottom:4px;padding-left:16px;font-family:var(--cl-font1);font-size:22px"><!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"12px","bottom":"12px"},"blockGap":"12px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:12px;padding-bottom:12px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
 <div class="wp-block-group"><!-- wp:html -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
 <!-- /wp:html --></div>
@@ -368,8 +368,8 @@ divider, and the paragraphs carry their own colour and size.
 <!-- /wp:paragraph --></div>
 <!-- /wp:group -->
 
-<!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
-<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<!-- wp:group {"style":{"border":{"bottom":{"color":"#e2ddd3","width":"1px","style":"solid"}},"spacing":{"padding":{"top":"12px","bottom":"12px"},"blockGap":"12px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="border-bottom-color:#e2ddd3;border-bottom-style:solid;border-bottom-width:1px;padding-top:12px;padding-bottom:12px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
 <div class="wp-block-group"><!-- wp:html -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
 <!-- /wp:html --></div>
@@ -380,8 +380,8 @@ divider, and the paragraphs carry their own colour and size.
 <!-- /wp:paragraph --></div>
 <!-- /wp:group -->
 
-<!-- wp:group {"style":{"spacing":{"padding":{"top":"10px","bottom":"10px"},"blockGap":"10px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
-<div class="wp-block-group" style="padding-top:10px;padding-bottom:10px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"12px","bottom":"12px"},"blockGap":"12px"}},"layout":{"type":"flex","flexWrap":"nowrap","verticalAlignment":"center"},"metadata":{"name":"Row"}} -->
+<div class="wp-block-group" style="padding-top:12px;padding-bottom:12px"><!-- wp:group {"style":{"layout":{"selfStretch":"fixedNoShrink","flexSize":"1em"}},"layout":{"type":"flex"},"metadata":{"name":"Icon"}} -->
 <div class="wp-block-group"><!-- wp:html -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></g></svg>
 <!-- /wp:html --></div>
@@ -469,6 +469,10 @@ WordPress's check, on the store's page and locally.
 
 ## ⚠️ blockGap renders ONLY if the destination theme opts in — DETECT it, never assume
 
+**The rule is one gap per container, set on the parent — never children's margins on top of it** (the spacing laws,
+L7: `codbrand-store-blueprint` → `references/spacing.md`; (a) warns). This section is how WordPress renders that gap,
+and what to do when the destination does not.
+
 `blockGap` emits **no CSS of its own**. WordPress turns it into real CSS only when the ACTIVE THEME
 opts into `spacing.blockGap`:
 
@@ -548,8 +552,8 @@ on every file built for a theme that renders the gap).
 **The OFF remedy — explicit margins, which DO emit inline CSS:**
 
 ```html
-<!-- wp:heading {"level":2,"style":{"spacing":{"margin":{"top":"0","bottom":"18px"}}}} -->
-<h2 class="wp-block-heading" style="margin-top:0;margin-bottom:18px">Section title</h2>
+<!-- wp:heading {"level":2,"style":{"spacing":{"margin":{"top":"0","bottom":"20px"}}}} -->
+<h2 class="wp-block-heading" style="margin-top:0;margin-bottom:20px">Section title</h2>
 <!-- /wp:heading -->
 ```
 

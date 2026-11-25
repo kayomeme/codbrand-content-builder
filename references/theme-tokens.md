@@ -106,6 +106,43 @@ be a mistake twice over:
    in one page's markup. A page legitimately using 3 of the store's 5 active faces is not over
    budget, and a page using 1 face on a store with 12 active is over budget while looking innocent.
 
+## Spacing comes from the store's Spacing designs — read them, write their px
+
+A store's spacing steps are its **Spacing designs** (a design preset type): each is one space, with one value on
+computers and one on phones (a store's phone is narrower than 768px). Read them before you set any space —
+`GET design_controls/presets?type=spacing`, every page; what they are: the api's `/docs/settings_vs_presets` →
+"Spacing presets hold a space, not a class". Each has a `category` (what it spaces) and a `title`; its px are in
+`css_default` (`gap:<n>px;`) and `css_mobile` (empty = the same on phones). Find a step by its category and title,
+never by an id remembered from another store.
+
+**A Spacing design prints no class and no variable** — the plugin writes its px into the designs that use it. So page
+content writes the px itself: the computer value as the value, the phone value in `"@mobile"` and `"@tablet"`
+(`responsive.md` → "A different value on phones or tablets"). **Never `var(--cl-spacing-N)`**: that is the name a design
+system gives the design, and no storefront defines it — the space renders as nothing (measured on a store, 25-11-2026:
+padding 0px; (a) warns). Content written this way does not follow a later edit of the design: say so in the hand-over.
+
+Which step a space takes, by its role:
+
+| The space | The design (category → title) |
+|---|---|
+| items of one group, one under the other or side by side: list rows, links, the blocks of one section | between vertical / horizontal → **Item** |
+| a heading → what it labels; between groups inside a section | → **Group** |
+| cards in a grid | → **Grid** |
+| between sections | space above → **Above section** |
+| a box's padding: a card, a panel, a row | inside → **Inside** (small, large) |
+| the page's sides | the store's **page edge** — the page's width mode owns it; never pad a section to imitate it (`conversion-rules.md` → "Backgrounds: decide WHO owns the page width") |
+
+What no design covers follows the scale by role: **tight 4px** (a label → its value, a title → its subline), a
+control's inside **12 × 16px**. Every value is on the 4px scale: 0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64, 80,
+96. **Converting a design whose space is off the scale:** take the step of the role it plays, else the nearer step (a
+tie to the larger), and name each value that moved in the hand-over ("14px gap → 16px"). (a) warns on a value off the
+scale and on children that make a second gap in one container.
+
+The laws these steps serve — proximity (L3), the scale (L6), one gap per container set on the parent (L7) — are the
+sibling skill's: `codbrand-store-blueprint` → `references/spacing.md`, at the same `version_tag`
+(`https://github.com/kayomeme/codbrand-store-blueprint/blob/<version_tag>/references/spacing.md`). No `spacing` type
+on the presets door: the plugin is older than this skill — use the scale by role above and say so.
+
 ## When to use a preset — BLOCK THEMES ONLY (skip this section on a classic theme)
 
 Use `var:preset|...` when the design intent is "use the theme's value", so the pattern adapts to user customizations of Astra.

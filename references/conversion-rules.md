@@ -87,7 +87,7 @@ Walk this for **every section** of the design. Skipping this is how patterns end
 | **Font size** | Pixel-precise vs theme default? | Explicit `style.typography.fontSize` if design specifies |
 | **Letter spacing** | Tight, normal, loose? Branding usually has tracking. | `style.typography.letterSpacing` (e.g. `"0.1em"`) |
 | **Line height** | Tight (1.2) for headings, loose (1.6) for body? | `style.typography.lineHeight` |
-| **Vertical rhythm** between repeating items (link lists, card grids) | Tight (12-14px) or generous (24-32px)? | Wrap items in `wp:group` with explicit `style.spacing.blockGap` |
+| **Vertical rhythm** between repeating items (link lists, card grids) | Which of the store's steps — Item, Group or Grid (`theme-tokens.md` → "Spacing comes from the store's Spacing designs")? | Wrap items in `wp:group` with explicit `style.spacing.blockGap` |
 | **Section padding** | Tight or generous? Asymmetric? | `style.spacing.padding` per side |
 | **Borders / dividers** | Color, width, presence? | `style.border` on wrapper; `wp:separator` with custom color for dividers |
 | **Button width** | Auto, partial, or full-width? | `width:25` / `50` / `75` / `100` JSON attribute |
@@ -117,8 +117,8 @@ Content saved by users without the `unfiltered_html` capability (Editors, Author
 **The way to draw it — block settings:** style a `wp:group` (with `style.color.background`, `style.border`, `style.spacing.padding`) to LOOK like an input field, with an inner `wp:paragraph` containing placeholder-styled text (gray color, e.g. `#9ca3af`). The rendered group looks identical to a real input in most contexts, but renders for every user role.
 
 ```html
-<!-- wp:group {"style":{"color":{"background":"#ffffff"},"border":{"width":"1px","color":"#d4d4d4"},"spacing":{"padding":{"top":"14px","right":"16px","bottom":"14px","left":"16px"}}},"layout":{"type":"constrained"}} -->
-<div class="wp-block-group has-border-color has-background" style="border-color:#d4d4d4;border-width:1px;background-color:#ffffff;padding-top:14px;padding-right:16px;padding-bottom:14px;padding-left:16px">
+<!-- wp:group {"style":{"color":{"background":"#ffffff"},"border":{"width":"1px","color":"#d4d4d4"},"spacing":{"padding":{"top":"16px","right":"16px","bottom":"16px","left":"16px"}}},"layout":{"type":"constrained"}} -->
+<div class="wp-block-group has-border-color has-background" style="border-color:#d4d4d4;border-width:1px;background-color:#ffffff;padding-top:16px;padding-right:16px;padding-bottom:16px;padding-left:16px">
   <!-- wp:paragraph {"style":{"color":{"text":"#9ca3af"},"typography":{"fontSize":"15px"}}} -->
   <p class="has-text-color" style="color:#9ca3af;font-size:15px">Your email</p>
   <!-- /wp:paragraph -->
@@ -332,10 +332,10 @@ at 375px:            24px gutters
 ```
 
 **There are four width modes** — `cl-full-width`, `cl-full-width-padded`, `cl-boxed-mode`,
-`cl-boxed-mode-padded` — and a fifth value, **`none`**, meaning no wrapper at all. The gutter values
-are store settings (`full_width_padded_style` ships `80px`, `full_width_padded_mobile_style` ships
-`24px`), so **read the store's actual value rather than quoting the shipped one** — on
-demo.codbrand.pro it is `32px`, not `80px`.
+`cl-boxed-mode-padded` — and a fifth value, **`none`**, meaning no wrapper at all. The gutter is the
+store's **page edge**, a store setting (a Spacing design of the page's sides; the store settings' doc names it), so
+**read the store's actual value rather than quoting one**: the 80px / 24px above are that store when it was
+measured, demo.codbrand.pro had `32px` then, and since plugin 1.2.1840 a store ships 48px / 16px.
 
 ### ⚠️ Correction — a page's width IS settable at publish, and NO store setting controls it
 
@@ -435,16 +435,22 @@ Same pages, measured: inside a Q&A pair (`h2` → its answer) the gap was **0px*
 the next, **16px**. Both are browser defaults — the agent set no vertical spacing at all. It reads as
 one undifferentiated wall, with nothing showing where an answer ends and the next question begins.
 
-A group is legible when the gap INSIDE it is visibly smaller than the gap BETWEEN it and its
-neighbour, **and neither is zero**. Set both on purpose.
+**The rule is the spacing laws, not this page:** L3 (a group's items sit closer together than its heading is to what
+came before, and no gap is zero), L6 (every space a step of the store's scale) and L7 (one gap per container, set on
+the parent; children carry no margins) — `codbrand-store-blueprint` → `references/spacing.md`, fetched at the same
+`version_tag` (`theme-tokens.md` → "Spacing comes from the store's Spacing designs" has the link and which step each
+space takes). Set every space on purpose; (a) warns on a value off the scale and on children that make a second gap.
+
+**How WordPress renders it — the implementation:**
 
 **`blockGap` DOES work on the codbrand theme** — its `theme.json` declares `"appearanceTools": true`,
 which switches on `spacing.blockGap`. But it also declares `"defaultSpacingSizes": false`, so a
 `var:preset|spacing|N` value resolves to nothing and vanishes silently. **Give `blockGap` a literal
 length** (`"24px"`), never a preset token — and never `clamp()`, `calc()` or `var()`: WordPress drops any gap
 holding "(" and the blocks fall back to the theme's default (`responsive.md` → "`clamp()` for a spacing step that
-ramps"). All three are flagged by the validator — `checkBlockGapReliance`, `checkPresetTokens` and, as an error,
-`checkDroppedBlockGap`.
+ramps"). A gap that changes on phones takes its phone step in `"@mobile"` and `"@tablet"` (`responsive.md` → "A
+different value on phones or tablets"). All three are flagged by the validator — `checkBlockGapReliance`,
+`checkPresetTokens` and, as an error, `checkDroppedBlockGap`.
 
 ## ⚠️ Horizontal padding has a CEILING and a FLOOR — never use it to control text measure, never leave it at zero under a background
 

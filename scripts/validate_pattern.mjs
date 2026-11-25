@@ -34,6 +34,11 @@
  *   - a wp:details padded vertically, which leaves most of its row unclickable (warning)
  *   - no blockGap WordPress drops: a value holding "(" (clamp(), calc(), var()), \ & = } or /*, per side and per
  *     device — the blocks would fall back to the default gap
+ *   - every space on the 4px scale: padding, margin, blockGap and a spacer's height, per side and per device, in px,
+ *     rem or both ends of a clamp(); a clamp() in a space; a Spacing design's variable, which no storefront defines
+ *     (warnings — the spacing laws' L6)
+ *   - one gap per container: no child margin, zeroed top margin or spacer making a second gap inside a container that
+ *     sets one, or, with --block-gap=supported, inside any layout container (warnings — the spacing laws' L7)
  *
  * TWO MODES:
  *   node validate_pattern.mjs path/to/markup.html   validate ONE file — what an agent just made
@@ -667,11 +672,205 @@ function checkDroppedBlockGap(markers) {
         if (typeof value !== "string" || !GAP_DROPPED.test(value)) continue;
         const where = `${state ? `"${state}" ` : ""}blockGap${side ? `.${side}` : ""}`;
         const instead = state ? `the base gap stays on that device` : side ? `that side gets the default gap` : `its blocks get the theme's default gap (24px on a store measured 15-11-2026)`;
-        errs.push(`wp:${m.name} at offset ${m.position}: its ${where} "${value}" is dropped by WordPress — a gap holding "(" (clamp(), calc(), var()) or \\ & = } /* is removed before any CSS is written, so ${instead}, and no other check notices. Give the gap a fixed length ("48px"), with a phone value in "@mobile" if it should change there; or set the gap to "0" and put the fluid step on each child's margin-top (references/responsive.md → "clamp() for a spacing step").`);
+        errs.push(`wp:${m.name} at offset ${m.position}: its ${where} "${value}" is dropped by WordPress — a gap holding "(" (clamp(), calc(), var()) or \\ & = } /* is removed before any CSS is written, so ${instead}, and no other check notices. Give the gap a fixed length, the step on computers ("48px"), with the phone step in "@mobile" and "@tablet" (references/responsive.md → "A different value on phones or tablets").`);
       }
     }
   }
   return errs;
+}
+
+/**
+ * L6 — every space on the 4px scale (the spacing laws: codbrand-store-blueprint's references/spacing.md, L6). A
+ * store's spacing steps are its Spacing designs, and they are chosen FROM this scale, so a value off it is off every
+ * store's steps — this needs no store record. Judged: padding, margin and blockGap (each side, base and "@mobile" /
+ * "@tablet") and a spacer's height, in px, rem (× 16) or a unitless 0, and both ends of a clamp(). Not judged: var(),
+ * presets, %, vw, em, calc(). A negative margin's size is judged. A blockGap WordPress drops is checkDroppedBlockGap's.
+ *
+ * Measured 20-11-2026 before the check existed: one store's 13 pages held 152 of 670 spaces off the scale (10px ×53,
+ * 14px ×53 …), the teaching corpus 75 of 360. WARNINGS for now: errors once the pages are calibrated.
+ *
+ * Two more shapes, one warning each:
+ * - clamp() in a space ramps through every value between its ends, off the scale at the widths a live check measures
+ *   (clamp(40px, 5.56vw, 80px) is 43px at 768 and 57px at 1024). The step switches instead: the computer value as the
+ *   value, the phone value in "@mobile" and "@tablet" — what the store's own designs do at 768.
+ * - var(--cl-spacing-N) is a Spacing design's name in a design system's tokens, never on the storefront: a Spacing
+ *   design prints no class and no variable (the plugin writes its px into the designs that use it), so the space
+ *   renders as nothing. Plugin 1.2.2034, read 25-11-2026.
+ */
+const SPACING_SCALE = [0, 2, 4, 6, 8, 12, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96];
+const STORE_SPACING_VAR = /var\(\s*--cl-spacing-/;
+
+/** Every space a block sets: [where, value], its "@mobile" / "@tablet" ones named so. */
+function spacingValues(m) {
+  const out = [];
+  const style = m.attrs?.style;
+  if (style && typeof style === "object") {
+    const places = [["", style]];
+    for (const [key, value] of Object.entries(style)) {
+      if (key.startsWith("@") && value && typeof value === "object") places.push([`"${key}" `, value]);
+    }
+    for (const [state, s] of places) {
+      for (const prop of ["padding", "margin", "blockGap"]) {
+        const v = s.spacing?.[prop];
+        if (v == null || v === "") continue;
+        if (typeof v === "object") for (const [side, sv] of Object.entries(v)) out.push([`${state}${prop}.${side}`, sv, prop]);
+        else out.push([`${state}${prop}`, v, prop]);
+      }
+    }
+  }
+  if (m.name === "spacer" && m.attrs?.height != null) out.push(["height", m.attrs.height, "height"]);
+  return out;
+}
+
+/** The px of one length this check judges, or null: px, rem (× 16), a unitless 0. */
+function judgedPx(v) {
+  if (typeof v === "number") return Math.abs(v);
+  const s = String(v).trim();
+  let m = s.match(/^-?(\d*\.?\d+)px$/);
+  if (m) return Math.abs(parseFloat(m[1]));
+  m = s.match(/^-?(\d*\.?\d+)rem$/);
+  if (m) return Math.abs(parseFloat(m[1])) * 16;
+  if (/^-?0+(\.0+)?$/.test(s)) return 0;
+  return null;
+}
+
+/** The two ends of a clamp(), or null. */
+function clampEnds(v) {
+  const m = String(v).trim().match(/^clamp\((.*)\)$/);
+  if (!m) return null;
+  const parts = m[1].split(",").map((p) => p.trim());
+  return parts.length === 3 ? [parts[0], parts[2]] : null;
+}
+
+function nearestSteps(px) {
+  const below = [...SPACING_SCALE].reverse().find((s) => s < px);
+  const above = SPACING_SCALE.find((s) => s > px);
+  if (above === undefined) return `the scale ends at ${below}px`;
+  return `nearest steps ${below}px and ${above}px`;
+}
+
+function checkSpacingScale(markers) {
+  const off = new Map();   // px → { n, props: Map, offsets: [] }
+  const clamps = [];
+  const storeVars = [];
+  for (const m of markers) {
+    if (m.kind === "close" || !m.attrs) continue;
+    const varSides = [];
+    for (const [where, value, prop] of spacingValues(m)) {
+      if (prop === "blockGap" && typeof value === "string" && GAP_DROPPED.test(value)) continue;
+      if (typeof value === "string" && STORE_SPACING_VAR.test(value)) {
+        varSides.push(`${where} "${value}"`);
+        continue;
+      }
+      const ends = clampEnds(value);
+      if (ends) clamps.push(m.position);
+      for (const length of ends ?? [value]) {
+        const px = judgedPx(length);
+        if (px === null || SPACING_SCALE.includes(px)) continue;
+        const entry = off.get(px) ?? { n: 0, props: new Map(), offsets: [] };
+        entry.n++;
+        entry.props.set(prop, (entry.props.get(prop) ?? 0) + 1);
+        if (entry.offsets.length < 3 && !entry.offsets.includes(m.position)) entry.offsets.push(m.position);
+        off.set(px, entry);
+      }
+    }
+    if (varSides.length) storeVars.push(`wp:${m.name} at offset ${m.position}: its ${varSides.length > 2 ? `${varSides.slice(0, 2).join(", ")} and ${varSides.length - 2} more` : varSides.join(" and ")}`);
+  }
+  const warns = [];
+  const scale = SPACING_SCALE.join(" ");
+  for (const [px, e] of [...off.entries()].sort((a, b) => b[1].n - a[1].n)) {
+    const props = [...e.props.entries()].map(([p, n]) => `${p === "height" ? "spacer height" : p} ×${n}`).join(", ");
+    warns.push(`${px}px is off the 4px spacing scale — ×${e.n} (${props}), first at offset${e.offsets.length > 1 ? "s" : ""} ${e.offsets.join(", ")}; ${nearestSteps(px)}. Every space is one of the store's steps (its Spacing designs, read from the store: references/theme-tokens.md → "Spacing comes from the store's Spacing designs"), all on the scale ${scale}. Take the step of the role the space plays, else the nearer step (a tie to the larger), and name the change in the hand-over.`);
+  }
+  if (clamps.length) {
+    warns.push(`clamp() in a space ×${clamps.length} (first at offset ${clamps[0]}) — it ramps through every value between its ends, off the scale at the widths a live check measures (clamp(40px, 5.56vw, 80px) is 43px at 768 and 57px at 1024). Write the step on computers as the value and its phone step in "@mobile" and "@tablet" (references/responsive.md → "A different value on phones or tablets").`);
+  }
+  for (const where of storeVars) {
+    warns.push(`${where} name a Spacing design's variable, which the storefront never defines — a Spacing design prints no class and no variable (the plugin writes its px into the designs that use it), so the space renders as nothing (measured: padding 0px on a store, 25-11-2026). Write the design's px on computers as the value and its phone px in "@mobile" and "@tablet" (references/theme-tokens.md → "Spacing comes from the store's Spacing designs").`);
+  }
+  return warns;
+}
+
+/**
+ * L7 — one gap per container, set on the parent (spacing.md, L7: "children carry no margins"). In a container that sets
+ * a blockGap — with --block-gap=supported, every layout container, since each then takes the theme's gap — a child
+ * that sets a margin where it faces a sibling makes a second gap: in a stack (flow) its margin-top REPLACES the gap
+ * (the inline margin wins over WordPress's layout rule) and its margin-bottom collapses into it; in a row or a grid
+ * the margin ADDS to the gap. A margin-top of 0 on a later child of a flow stack cancels the gap — the two touch. A
+ * spacer in such a container is a second gap too. The fix is the same each time: a different space between some
+ * children is a nested group with its own gap.
+ *
+ * Not a fault: margin 0 on the first child's top or on any bottom (WordPress already sets them to 0 there); a
+ * blockGap {top, left} with two values (row and column are different axes, as in a grid's two settings); the first
+ * child's margin-top and the last one's margin-bottom (an inset question, not a gap). Measured 20-11-2026 on one
+ * store's 13 pages: 11 containers (38 with --block-gap=supported), among them a 4px margin-top under an 18px gap and
+ * margin-top 0 under a 10px flow gap. A WARNING, as L6.
+ */
+const GAP_CONTAINERS = new Set(["group", "column", "columns", "buttons", "social-links", "gallery", "cover"]);
+const ROW_BLOCKS = new Set(["columns", "buttons", "social-links", "gallery"]);
+
+function isZeroLength(v) {
+  return v === 0 || (typeof v === "string" && /^-?0+(\.0+)?(px|rem|em|%)?$/.test(v.trim()));
+}
+
+function checkGapBuildRule(markers, blockGapSupported = false) {
+  const warns = [];
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    if (m.kind !== "open" || !GAP_CONTAINERS.has(m.name)) continue;
+    const gap = m.attrs?.style?.spacing?.blockGap;
+    const gapSet = gap !== undefined && gap !== null && gap !== "";
+    if (!gapSet && !blockGapSupported) continue;
+    const layout = m.attrs?.layout ?? {};
+    const type = layout.type ?? (ROW_BLOCKS.has(m.name) ? "flex" : "default");
+    const flow = type === "default" || type === "constrained";
+    const axis = type === "grid" ? "grid" : (type === "flex" && layout.orientation !== "vertical") || ROW_BLOCKS.has(m.name) ? "row" : "stack";
+    const axisGap = !gapSet ? null : typeof gap === "object" ? (axis === "row" ? gap.left : gap.top) : gap;
+    const gapText = gapSet ? `sets its gap (${JSON.stringify(gap)})` : "takes the theme's gap (block-gap support is on)";
+    const kids = directChildren(markers, i).filter((k) => k.kind !== "close");
+    if (kids.length < 2) continue;
+
+    const margin = (k) => k.attrs?.style?.spacing?.margin;
+    const tops = kids.slice(1).map((k) => margin(k)?.top);
+    const carried = gapSet && isZeroLength(axisGap) && axis === "stack" && tops.every((t) => t != null && t !== "" && !isZeroLength(t));
+    if (carried) {
+      const values = [...new Set(tops.map(String))];
+      warns.push(values.length > 1
+        ? `wp:${m.name} at offset ${m.position}: its gap is "0" and its children's top margins make ${values.length} gaps (${values.slice(0, 3).join(" / ")}) — one gap per container, set on the parent (the spacing laws, L7: codbrand-store-blueprint → references/spacing.md). Give the ${m.name} one blockGap (the step on computers, the phone step in "@mobile" / "@tablet") and put the children spaced differently in a nested group with its own gap.`
+        : `wp:${m.name} at offset ${m.position}: its gap is "0" and every child after the first carries the space as margin-top "${values[0]}" — the space belongs on the parent (the spacing laws, L7: codbrand-store-blueprint → references/spacing.md): give the ${m.name} that blockGap (the step on computers, the phone step in "@mobile" / "@tablet"; a gap takes no clamp()) and remove the children's margins.`);
+      continue;
+    }
+
+    const found = [];
+    kids.forEach((k, n) => {
+      const nth = `child ${n + 1} (wp:${k.name})`;
+      if (k.name === "spacer") { found.push(`${nth} is a spacer — a second gap`); return; }
+      const states = [["", k.attrs?.style]];
+      for (const [key, value] of Object.entries(k.attrs?.style ?? {})) {
+        if (key.startsWith("@") && value && typeof value === "object") states.push([`"${key}" `, value]);
+      }
+      for (const [state, s] of states) {
+        const mg = s?.spacing?.margin;
+        if (!mg || typeof mg !== "object") continue;
+        const facing = axis === "row" ? [n > 0 && "left", n < kids.length - 1 && "right"]
+          : axis === "grid" ? ["top", "bottom", "left", "right"]
+          : [n > 0 && "top", n < kids.length - 1 && "bottom"];
+        for (const side of facing.filter(Boolean)) {
+          const v = mg[side];
+          if (v == null || v === "" || isZeroLength(v)) continue;
+          const effect = flow && side === "top" ? "replaces the gap" : flow ? "collapses into the gap" : "adds to the gap";
+          found.push(`${nth} ${state}margin-${side} "${v}" ${effect}`);
+        }
+        const gapLive = gapSet ? !isZeroLength(axisGap) : true;
+        if (flow && n > 0 && gapLive && mg.top != null && mg.top !== "" && isZeroLength(mg.top)) {
+          found.push(`${nth} ${state}margin-top "${mg.top}" cancels the gap — the two touch`);
+        }
+      }
+    });
+    if (!found.length) continue;
+    warns.push(`wp:${m.name} at offset ${m.position} ${gapText} but its children make another: ${found.slice(0, 3).join("; ")}${found.length > 3 ? `; and ${found.length - 3} more` : ""}. One gap per container, set on the parent (the spacing laws, L7: codbrand-store-blueprint → references/spacing.md): remove the children's margins, and put children that need a different space in a nested group with its own gap.`);
+  }
+  return warns;
 }
 
 /** The blocks directly inside the container opened at markers[i] (depth 0 only). */
@@ -827,7 +1026,7 @@ function checkEmptyColumns(markers) {
  * container — none of them is the defect being caught here.
  *
  * Thresholds are grounded, not taste: the teaching corpus's own maximum is 80px (40+40 across 57
- * padding declarations), and a phone leaves ~327px. So >120px is already generous, and >=200px (or
+ * padding declarations), and a phone leaves ~327px (24px gutters then; ~343px with the 16px page edge shipped since plugin 1.2.1840). So >120px is already generous, and >=200px (or
  * >=150px on ONE side) cannot survive a phone under any layout. Below the error band it stays a
  * WARNING because the check cannot see the container width — see SKILL.md, "never enforce an
  * advisory rule as an error".
@@ -922,9 +1121,9 @@ function checkHorizontalPadding(markers) {
     const sum = (left ?? 0) + (right ?? 0);
     const worst = Math.max(left ?? 0, right ?? 0);
     if (sum >= 200 || worst >= 150) {
-      errs.push(`${where}: horizontal padding ${left ?? 0}px + ${right ?? 0}px = ${sum}px. A 375px phone leaves ~327px inside the store's gutters, so this leaves ~${Math.max(0, 327 - sum)}px for content. Padding does NOT shrink — never use it to control line length. Use a constrained contentSize or a % column width instead (conversion-rules.md).`);
+      errs.push(`${where}: horizontal padding ${left ?? 0}px + ${right ?? 0}px = ${sum}px. A 375px phone leaves ~343px inside a store's page edge (16px a side as shipped since plugin 1.2.1840; a store may set its own), so this leaves ~${Math.max(0, 343 - sum)}px for content. Padding does NOT shrink — never use it to control line length. Use a constrained contentSize or a % column width instead (conversion-rules.md).`);
     } else if (sum > 120) {
-      warns.push(`${where}: horizontal padding ${left ?? 0}px + ${right ?? 0}px = ${sum}px — fixed px padding does not shrink, and this leaves ~${327 - sum}px on a 375px phone. Verify at a narrow viewport, or use a mechanism that shrinks (conversion-rules.md).`);
+      warns.push(`${where}: horizontal padding ${left ?? 0}px + ${right ?? 0}px = ${sum}px — fixed px padding does not shrink, and this leaves ~${343 - sum}px on a 375px phone inside a store's shipped page edge. Verify at a narrow viewport, or use a mechanism that shrinks (conversion-rules.md).`);
     }
   }
   return { errs, warns };
@@ -1331,7 +1530,9 @@ export function validateMarkup(markup, options = {}) {
     for (const issue of checkFragmentTargets(markup, markers)) errors.push(issue);
     for (const issue of checkHtmlOutsideBlocks(markup, markers)) errors.push(issue);
     for (const issue of checkDividerRowsGap(markers)) warnings.push(issue);
+    for (const issue of checkGapBuildRule(markers, options.blockGapSupported === true)) warnings.push(issue);
   }
+  for (const issue of checkSpacingScale(markers)) warnings.push(issue);
 
   for (const issue of checkHtmlCorruption(markup, false)) errors.push(issue);
   for (const issue of checkInlineStyleWhitelist(maskHtmlBlocks(markup))) errors.push(issue);

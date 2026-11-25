@@ -66,14 +66,27 @@ Mobile viewport." and shows these values — and the editor writes exactly this 
 - **The sizes are WordPress's** — phone up to 480px, tablet 481–782px, unless the theme sets its own
   (`settings.viewport`) — the same as "Phones only, or not on phones" below, not a store's own phone width (767px on a
   CodBrand storefront, whose 481–767px is WordPress's tablet).
-- **Prefer it to `clamp()` when the source switches at a breakpoint** — it switches too; a `clamp()` ramps (next
-  section). Measured on one store (dev1, WordPress 7.1.4, 16-11-2026) at 390 / 600 / 768 / 1423px: the gap above
+- **A space that differs on phones is always written this way** (since 25-11-2026): the store's step on computers
+  as the value, its phone step in **both** `"@mobile"` and `"@tablet"` — a store's phone is narrower than 768px, so
+  WordPress's tablet range is mostly the store's phone; the two differ only at 768–782px. The steps come from the
+  store's Spacing designs (`theme-tokens.md` → "Spacing comes from the store's Spacing designs"); a loose value above
+  20px takes `max(20, the scale step nearest 0.7 × the computer value)` on phones, 20px or less stays the same (the
+  spacing laws' phone rule). A `clamp()` ramps through values off the scale between its ends (next section), so (a)
+  warns on one in a space. Measured on dev1 (WordPress 7.1, 25-11-2026): a gap of 16px with 12px in both states gave
+  12 / 12 / 16 / 16px at 390 / 768 / 1024 / 1440. Measured on one store (dev1, WordPress 7.1.4, 16-11-2026) at 390 / 600 / 768 / 1423px: the gap above
   48 / 80 / 80 / 80, the padding 20 / 32 / 32 / 48, a margin 64 with a phone value of 24 → 24 / 64 / 64 / 64. All pass
   both validators.
 - **A gap must still be a fixed length here** — a `clamp()` in `"@mobile"` is dropped like any other (below).
 - A button's or a navigation link's hover is a setting of the same kind: `block-supports.md` → "A button's hover".
 
 ### `clamp()` for a spacing step that ramps — padding and margin, never the block gap
+
+⚠️ **The older way for a space — kept for pages built before 25-11-2026, and for a font size.** A new space that
+differs on phones switches instead (the section above): a ramp passes through values off the store's scale between
+its ends — `clamp(40px, 5.56vw, 80px)` is 43px at 768 and 57px at 1024, widths a live check measures — and the gap
+recipe below puts the space on the children's margins, which the spacing laws' L7 forbids. (a) warns on both. The
+values in this section are the source's from that build, not steps. What follows is how a `clamp()` behaves, for
+reading and keeping a page that has one.
 
 A media query switches; `clamp()` ramps between two sizes, with no setting per device. When the source's only mobile
 change is a spacing step and a ramp is acceptable, `clamp()` needs no custom CSS:
@@ -216,8 +229,9 @@ The stacked mobile card is **WIDER** (287 > 277) and therefore **SHORTER** (463 
 ≥484px, mobile needs ≤463px: empty range again.
 
 **Root cause, and it is a property of every CodBrand storefront:** the reasoning assumed horizontal
-chrome is constant across viewports. **The store's gutters are not** — `full_width_padded_style` is
-80px per side, `full_width_padded_mobile_style` is 24px. That **160px vs 48px** asymmetry shrinks the
+chrome is constant across viewports. **The store's gutters are not** — the store's page edge (a store setting: read
+it) was 80px per side on computers and 24px on phones on the store measured here (a store ships 48px / 16px since
+plugin 1.2.1840). That **160px vs 48px** asymmetry shrinks the
 desktop container faster than the viewport shrinks, so just above the stacking breakpoint two columns
 are each narrower than one stacked card. Any rule that compares "desktop card width" with "mobile card
 width" on this platform must account for the gutters — neither form of this recipe did.
